@@ -1,2 +1,6 @@
 **/.*
 **/__pycache__
+
+# Include Files
+!.python-version
+!.env.example
