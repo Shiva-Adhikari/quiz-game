@@ -3,10 +3,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 # Local imports
-from src.core.config import settings
+from src.core import settings
 
 
-DATABASE_URL = 'postgresql://postgres:@localhost:5432/quiz-game'
+DATABASE_URL = settings.DATABASE_URL.get_secret_value()
 engine = create_engine(DATABASE_URL, echo=settings.DEBUG)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -28,7 +28,7 @@ class Base(DeclarativeBase):
 def create_tables():
     """Create all database tables"""
     try:
-        # Base.metadata.drop_all(bind=engine)
+        Base.metadata.drop_all(bind=engine)
         Base.metadata.create_all(bind=engine)
         print("Tables created successfully")
     except Exception as e:
