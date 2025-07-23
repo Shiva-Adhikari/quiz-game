@@ -1,5 +1,4 @@
 # Standard library imports
-from enum import Enum
 from typing import List
 from datetime import datetime
 
@@ -10,16 +9,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # Local imports
-from src.core import Base
-from src.models.levels import QuizConfiguration
-from src.models.analytics import ActiveQuizSession, QuestionHistory
-
-
-class DifficultyLevel(Enum):
-    EASY = 'easy'
-    MEDIUM = 'medium'
-    HARD = 'hard'
-    EXPERT = 'expert'
+from src.core.database import Base
+from src.utils.enums import DifficultyLevel
+# from src.models.levels import QuizConfiguration
+# from src.models.analytics import ActiveQuizSession, QuestionHistory
 
 
 class Category(Base):
@@ -37,15 +30,26 @@ class Category(Base):
         server_default=func.now(), onupdate=func.now())
 
     questions: Mapped[List['Question']] = relationship(
-        'Question', back_populates='categories')
-    quiz_configurations: Mapped[list['QuizConfiguration']] = relationship(
-        'QuizConfiguration', back_populates='categories')
-    active_quiz_sessions: Mapped[List['ActiveQuizSession']] = relationship(
-        'ActiveQuizSession', back_populates='categories')
+        'Question', back_populates='category')
 
-    def __repr__(self) -> str:
-        return f'<Category(id={self.id}, name={self.name}, ' \
-                f'difficulty={self.difficulty_multiplier})>'
+
+'''
+    # quiz_sessions = relationship("QuizSession", back_populates="category")
+
+    # quiz_sessions: Mapped[List["QuizSession"]] = relationship(
+        # "QuizSession", back_populates="category")
+    # user_answers: Mapped[List["UserAnswer"]] = relationship(
+        # "UserAnswer", back_populates="question")
+
+    # quiz_configurations: Mapped[list['QuizConfiguration']] = relationship(
+    #     'QuizConfiguration', back_populates='categories')
+    # active_quiz_sessions: Mapped[List['ActiveQuizSession']] = relationship(
+    #     'ActiveQuizSession', back_populates='categories')
+
+    # def __repr__(self) -> str:
+    #     return f'<Category(id={self.id}, name={self.name}, ' \
+    #             f'difficulty={self.difficulty_multiplier})>'
+'''
 
 
 class Question(Base):
@@ -63,7 +67,7 @@ class Question(Base):
     option_b: Mapped[str] = mapped_column(String(50), nullable=False)
     option_c: Mapped[str] = mapped_column(String(50), nullable=False)
     option_d: Mapped[str] = mapped_column(String(50), nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -72,11 +76,15 @@ class Question(Base):
 
     category: Mapped['Category'] = relationship(
         'Category', back_populates='questions')
-    question_histories: Mapped[List['QuestionHistory']] = relationship(
-        'QuestionHistory', back_populates='questions')
 
-    def __repr__(self) -> str:
-        return f'<Question(id={self.id}, ' \
-                f'category_id={self.category_id}, ' \
-                f'difficulty={self.difficulty_level})>'
+
+'''
+    # question_histories: Mapped[List['QuestionHistory']] = relationship(
+    #     'QuestionHistory', back_populates='questions')
+
+    # def __repr__(self) -> str:
+    #     return f'<Question(id={self.id}, ' \
+    #             f'category_id={self.category_id}, ' \
+    #             f'difficulty={self.difficulty_level})>'
+'''
 # /

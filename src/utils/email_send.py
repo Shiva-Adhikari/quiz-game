@@ -1,9 +1,9 @@
 # Standard library imports
 import ssl
 import smtplib
+from email.message import EmailMessage
 
 # Local imports
-from email.message import EmailMessage
 from src.core.config import settings
 
 
