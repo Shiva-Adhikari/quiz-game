@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 # Local imports
-from src.core import settings
+from src.core.config import settings
 
 
 DATABASE_URL = settings.DATABASE_URL.get_secret_value()
@@ -28,7 +28,7 @@ class Base(DeclarativeBase):
 def create_tables():
     """Create all database tables"""
     try:
-        Base.metadata.drop_all(bind=engine)
+        # Base.metadata.drop_all(bind=engine)
         Base.metadata.create_all(bind=engine)
         print("Tables created successfully")
     except Exception as e:
