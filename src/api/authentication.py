@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from fastapi import (
     APIRouter, Depends, HTTPException, Response,
-    # Request
+    Request
 )
 
 # Local imports
@@ -177,17 +177,51 @@ def login(
     )
 
 
-# @router.post('/logout')
-# def logout(request: Request, db: Session = Depends(get_db)):
-#     session_id = request.cookies.get('session_id')
-#     if not session_id:
-#         raise HTTPException(status_code=404, detail='Invalid session')
+@router.post('/logout')
+def logout(request: Request, response: Response, db: Session = Depends(get_db)):
+    session_id = request.cookies.get('session_id')
 
-#     session = db.query(UserSession).filter(UserSession.session_token == session_id).first()
-#     if session:
-#         db.delete(session)
-#         db.commit()
+    response.delete_cookie('session_id')
+    if not session_id:
+        raise HTTPException(status_code=404, detail='No active session')
 
-#     response = Response(status_code=200)
-#     response.delete_cookie('session_id')
-#     return response
+    session = db.query(UserSession).filter(UserSession.session_token == session_id).first()
+    if not session:
+        raise HTTPException(status_code=401, detail='Invalid session')
+
+    try:
+        username = session.user.username
+    except AttributeError:
+        username = 'Unknown user'
+
+    db.delete(session)
+    db.commit()
+
+    return {
+        'message': 'Logout successful',
+        "username": username,
+    }
+
+
+# Add a helper endpoint to check session status
+@router.get('/session-status')
+def session_status(request: Request, db: Session = Depends(get_db)):
+    session_id = request.cookies.get('session_id')
+    if not session_id:
+        return {"status": "no_session"}
+
+    session = db.query(UserSession).filter(
+        UserSession.session_token == session_id
+    ).first()
+
+    if not session:
+        return {"status": "invalid_session"}
+
+    if session.expires_at < datetime.now(timezone.utc):
+        return {"status": "expired_session"}
+
+    return {
+        "status": "valid_session",
+        "user": session.user.username,
+        "expires_at": session.expires_at
+    }

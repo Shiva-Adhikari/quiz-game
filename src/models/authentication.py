@@ -12,7 +12,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import (
     Mapped, mapped_column,
-    # relationship
+    relationship
 )
 
 # Local imports
@@ -42,12 +42,13 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now(),
         onupdate=func.now())
 
+    user_session: Mapped["UserSession"] = relationship(
+        "UserSession", back_populates="user")
+
 
 '''
     # email_verifications: Mapped[List["EmailVerification"]] = relationship(
         # "EmailVerification", back_populates="user")
-    # user_session: Mapped[List["UserSession"]] = relationship(
-        # "UserSession", back_populates="user")
 
     # # These should be plural (one-to-many)
     # quiz_sessions: Mapped[List['QuizSession']] = relationship('QuizSession', back_populates='user')
@@ -114,11 +115,10 @@ class UserSession(Base):
     last_activity_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+    user: Mapped['User'] = relationship(
+        'User', back_populates='user_session')
 
 '''
-#     user: Mapped['User'] = relationship(
-#         'User', back_populates='user_session')
-
     # category: Mapped['Category'] = relationship(
         # 'Category', back_populates='user_sessions')
 '''
