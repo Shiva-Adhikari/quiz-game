@@ -1,7 +1,6 @@
 # Standard library imports
 from typing import (
-    Optional,
-    # List
+    Optional, List, TYPE_CHECKING
 )
 from datetime import datetime
 
@@ -12,17 +11,15 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import (
     Mapped, mapped_column,
-    relationship
+    relationship, configure_mappers
 )
 
 # Local imports
 from src.core.database import Base
-'''
-# from src.models.user_data import QuizSession
-# from src.models.analytics import (
-    # ActiveQuizSession, QuestionHistory, UserStatistics)
-# from src.models.questions import Category
-'''
+# if TYPE_CHECKING:
+# from src.models.quiz_session import QuizSession
+
+configure_mappers()
 
 
 class User(Base):
@@ -42,16 +39,16 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now(),
         onupdate=func.now())
 
-    user_session: Mapped["UserSession"] = relationship(
-        "UserSession", back_populates="user")
+    # email_verification: Mapped["EmailVerification"] = relationship(
+        # "EmailVerification", back_populates="user")
+    user_session: Mapped["UserSession"] = relationship("UserSession", back_populates="user")
+
+    # quiz_sessions: Mapped[list["QuizSession"]] = relationship('QuizSession', back_populates="user")
 
 
 '''
-    # email_verifications: Mapped[List["EmailVerification"]] = relationship(
-        # "EmailVerification", back_populates="user")
 
     # # These should be plural (one-to-many)
-    # quiz_sessions: Mapped[List['QuizSession']] = relationship('QuizSession', back_populates='user')
 
     # active_quiz_session: Mapped[List['ActiveQuizSession']] = relationship(
     #     'ActiveQuizSession', back_populates='user')
@@ -73,7 +70,7 @@ class EmailVerification(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(
         ForeignKey('users.id', ondelete='CASCADE'), index=True)
-    token: Mapped[Optional[str]] = mapped_column(String(255), index=True)
+    token: Mapped[Optional[int]] = mapped_column(Integer, index=True)
     is_used: Mapped[bool] = mapped_column(Boolean, default=False)
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(
@@ -83,10 +80,11 @@ class EmailVerification(Base):
     verified_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True)
 
-
-'''
     # user: Mapped['User'] = relationship(
         # 'User', back_populates='email_verification')
+
+
+'''
 
     # __table_args__ = (
     #     CheckConstraint(
@@ -118,8 +116,9 @@ class UserSession(Base):
     user: Mapped['User'] = relationship(
         'User', back_populates='user_session')
 
+
 '''
     # category: Mapped['Category'] = relationship(
-        # 'Category', back_populates='user_sessions')
+        # 'Category', back_populates='user_session')
 '''
 # /

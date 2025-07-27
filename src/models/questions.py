@@ -1,18 +1,21 @@
 # Standard library imports
-from typing import List
+from typing import List, TYPE_CHECKING
 from datetime import datetime
 
 # Third-party imports
 from sqlalchemy import (
     Integer, Boolean, DateTime, String, func, Float, ForeignKey,
     Enum as SQLEnum)
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, configure_mappers
 
 # Local imports
 from src.core.database import Base
 from src.utils.enums import DifficultyLevel
-# from src.models.levels import QuizConfiguration
-# from src.models.analytics import ActiveQuizSession, QuestionHistory
+if TYPE_CHECKING:
+    from src.models.quiz_session import QuizSession
+
+
+configure_mappers()
 
 
 class Category(Base):
@@ -29,8 +32,9 @@ class Category(Base):
         DateTime(timezone=True),
         server_default=func.now(), onupdate=func.now())
 
-    questions: Mapped[List['Question']] = relationship(
-        'Question', back_populates='category')
+    questions: Mapped[List['Question']] = relationship('Question', back_populates='category')
+
+    # quiz_sessions: Mapped[list["QuizSession"]] = relationship(back_populates="category")
 
 
 '''
@@ -74,9 +78,14 @@ class Question(Base):
         DateTime(timezone=True),
         server_default=func.now(), onupdate=func.now())
 
-    category: Mapped['Category'] = relationship(
-        'Category', back_populates='questions')
+    category: Mapped['Category'] = relationship('Category', back_populates='questions')
 
+    # Relationships
+    quiz_sessions: Mapped[list['QuizSession']] = relationship(
+        'QuizSession', 
+        secondary='quiz_session_questions',  # ← ADDED secondary table
+        back_populates='questions'
+    )
 
 '''
     # question_histories: Mapped[List['QuestionHistory']] = relationship(

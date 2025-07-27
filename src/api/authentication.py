@@ -28,14 +28,17 @@ router = APIRouter(prefix='/authentication', tags=['Authentication'])
 def register(user: UserRegister, db: Session = Depends(get_db)) -> UserResponse:
     existing_user = db.query(User).filter(
         (User.email == user.email) | (User.username == user.username)
-    ).filter(User.is_verified).first()
+    ).first()
 
     if existing_user:
-        if existing_user.email == user.email:
-            raise HTTPException(status_code=409, detail='Email already exists')
-        if existing_user.username == user.username:
-            raise HTTPException(
-                status_code=409, detail='Username already exists')
+        if existing_user.is_verified:
+            if existing_user.email == user.email:
+                raise HTTPException(status_code=409, detail='Email already exists')
+            if existing_user.username == user.username:
+                raise HTTPException(status_code=409, detail='Username already exists')
+        else:
+            db.delete(existing_user)
+            db.flush()
 
     otp = generate_otp()
     expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
@@ -108,7 +111,7 @@ def verify_email(email: str, otp: int, db: Session = Depends(get_db)) -> dict:
         db.commit()
         raise HTTPException(status_code=400, detail='Otp Expired')
 
-    if email_verification_table.token != otp:
+    if int(email_verification_table.token) != int(otp):
         email_verification_table.attempts += 1
         db.commit()
 
