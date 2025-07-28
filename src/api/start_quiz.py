@@ -362,3 +362,31 @@ def abandon_quiz(
     db.commit()
 
     return {"message": "Quiz session abandoned successfully"}
+
+
+@router.get("/quiz/active")
+def get_active_quiz(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get user's current active quiz session if any
+    """
+    active_session = db.query(QuizSession).filter(
+        QuizSession.user_id == current_user.id,
+        QuizSession.is_active
+    ).first()
+
+    if not active_session:
+        return {"message": "No active quiz session found", "active_session": None}
+
+    return {
+        "message": "Active quiz session found",
+        "active_session": {
+            "quiz_session_id": active_session.id,
+            "status": active_session.status.value,
+            "questions_answered": active_session.questions_answered,
+            "total_questions": active_session.total_questions,
+            "current_score": active_session.correct_answers
+        }
+    }
