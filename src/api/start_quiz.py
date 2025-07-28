@@ -254,7 +254,6 @@ def submit_answer(request: SubmitAnswerRequest, db: Session = Depends(get_db), c
     )
 
 
-'''
 @router.get('/start/progress/{quiz_session_id}', response_model=QuizProgressResponse)
 def get_quiz_progress(quiz_session_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """ get current progress of quiz session
@@ -266,7 +265,7 @@ def get_quiz_progress(quiz_session_id: int, db: Session = Depends(get_db), curre
     ).first()
 
     if not quiz_session:
-        raise HTTPException(status_code=404, detai='Quiz session not found')
+        raise HTTPException(status_code=404, detail='Quiz session not found')
 
     # Calculate time remaining
     time_remaining_seconds = None
@@ -289,7 +288,7 @@ def get_quiz_progress(quiz_session_id: int, db: Session = Depends(get_db), curre
         time_remaining_seconds=time_remaining_seconds,
         is_completed=quiz_session.status == SessionStatus.COMPLETED
     )
-'''
+
 
 '''
 @router.get('/quiz/results/{quiz_session_id}')
@@ -312,13 +311,15 @@ def get_quiz_results(quiz_session_id: int, current_user: User = Depends(get_curr
     ).all()
 
     answers_breakdown = [
-        question_id = answer.question_id,
-        question_text = answer.question_text,
-        user_answer = answer.user_answer,
-        correct_answer = answer.question.correct_answer,
-        is_correct = answer.is_correct,
-        time_taken_seconds = answer.time_taken_seconds
-    ] for answer in answers
+        {
+            question_id = answer.question_id,
+            question_text = answer.question_text,
+            user_answer = answer.user_answer,
+            correct_answer = answer.question.correct_answer,
+            is_correct = answer.is_correct,
+            time_taken_seconds = answer.time_taken_seconds
+        } for answer in answers
+    ]
 
     total_time = None
     if quiz_session.completed_at and quiz_session.started_at:
