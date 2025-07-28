@@ -3,7 +3,7 @@ from typing import Optional, TYPE_CHECKING
 from datetime import datetime
 
 # Third-party imports
-from sqlalchemy.orm import Mapped, mapped_column, relationship, configure_mappers
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import (
     ForeignKey, Integer, Boolean,
     DateTime, Enum as SQLEnum, UniqueConstraint, String, func

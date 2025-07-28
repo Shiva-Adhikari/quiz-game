@@ -11,15 +11,13 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import (
     Mapped, mapped_column,
-    relationship, configure_mappers
+    relationship
 )
 
 # Local imports
 from src.core.database import Base
 # if TYPE_CHECKING:
 # from src.models.quiz_session import QuizSession
-
-configure_mappers()
 
 
 class User(Base):

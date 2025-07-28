@@ -6,16 +6,13 @@ from datetime import datetime
 from sqlalchemy import (
     Integer, Boolean, DateTime, String, func, Float, ForeignKey,
     Enum as SQLEnum)
-from sqlalchemy.orm import Mapped, mapped_column, relationship, configure_mappers
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # Local imports
 from src.core.database import Base
 from src.utils.enums import DifficultyLevel
 if TYPE_CHECKING:
     from src.models.quiz_session import QuizSession
-
-
-configure_mappers()
 
 
 class Category(Base):
