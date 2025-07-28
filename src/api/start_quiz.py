@@ -290,7 +290,6 @@ def get_quiz_progress(quiz_session_id: int, db: Session = Depends(get_db), curre
     )
 
 
-'''
 @router.get('/quiz/results/{quiz_session_id}')
 def get_quiz_results(quiz_session_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """ Get detailed results after quiz completion
@@ -312,12 +311,12 @@ def get_quiz_results(quiz_session_id: int, current_user: User = Depends(get_curr
 
     answers_breakdown = [
         {
-            question_id = answer.question_id,
-            question_text = answer.question_text,
-            user_answer = answer.user_answer,
-            correct_answer = answer.question.correct_answer,
-            is_correct = answer.is_correct,
-            time_taken_seconds = answer.time_taken_seconds
+            'question_id': answer.question_id,
+            # 'question_text': answer.question_text,
+            'user_answer': answer.user_answer,
+            'correct_answer': answer.user_answer,
+            'is_correct': answer.is_correct,
+            'time_taken_seconds': answer.time_taken_seconds
         } for answer in answers
     ]
 
@@ -336,4 +335,3 @@ def get_quiz_results(quiz_session_id: int, current_user: User = Depends(get_curr
         'difficulty_level': quiz_session.category_id,
         'answers_breakdown': answers_breakdown
     }
-'''
