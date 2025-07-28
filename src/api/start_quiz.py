@@ -335,3 +335,30 @@ def get_quiz_results(quiz_session_id: int, current_user: User = Depends(get_curr
         'difficulty_level': quiz_session.category_id,
         'answers_breakdown': answers_breakdown
     }
+
+
+@router.delete("/quiz/abandon/{quiz_session_id}")
+def abandon_quiz(
+    quiz_session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Abandon an active quiz session
+    """
+    quiz_session = db.query(QuizSession).filter(
+        QuizSession.id == quiz_session_id,
+        QuizSession.user_id == current_user.id,
+        QuizSession.is_active
+    ).first()
+
+    if not quiz_session:
+        raise HTTPException(status_code=404, detail="Active quiz session not found")
+
+    quiz_session.status = SessionStatus.ABANDONED
+    quiz_session.is_active = False
+    quiz_session.completed_at = datetime.utcnow()
+
+    db.commit()
+
+    return {"message": "Quiz session abandoned successfully"}
