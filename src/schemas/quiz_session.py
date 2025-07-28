@@ -59,7 +59,7 @@ class SubmitAnswerRequest(BaseModel):
 class SubmitAnswerResponse(BaseModel):
     is_correct: bool
     correct_answer: str
-    explanation: Optional[str] = None
+    # explanation: Optional[str] = None
     current_score: int
     questions_answered: int
     total_questions: int

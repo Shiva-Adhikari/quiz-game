@@ -10,7 +10,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from fastapi import (
     APIRouter, Depends,
-    # HTTPException,
+    HTTPException,
     # Response,
     # Request
 )
@@ -29,13 +29,14 @@ from src.utils.enums import (
 )
 from src.models.quiz_session import (
     QuizSession, QuizSessionQuestion,
-    # UserAnswer
+    UserAnswer
 )
 from src.schemas.quiz_session import (
     StartQuizRequest, QuestionResponse,
     # StartQuizResponse,
     SubmitAnswerRequest,
-    # SubmitAnswerResponse, QuizProgressResponse
+    SubmitAnswerResponse,
+    QuizProgressResponse
 )
 
 router = APIRouter(prefix='/StartQuiz', tags=['StartQuiz'])
@@ -131,3 +132,207 @@ def random_quiz(request: StartQuizRequest, db: Session = Depends(get_db), curren
         "timer_expires_at": timer_expires_at,
         "message": f"Quiz started successfully! You have {request.total_questions} questions to answer."
     }
+
+
+@router.post('/start/random-quiz-answer', response_model=SubmitAnswerResponse)
+def submit_answer(request: SubmitAnswerRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """ Submit answer for a question and get immediate feedback
+    """
+
+    # Validate quiz session exists and belongs to current user
+    quiz_session = db.query(QuizSession).filter(
+        QuizSession.id == request.quiz_session_id,
+        QuizSession.user_id == current_user.id,
+        QuizSession.is_active
+    ).first()
+
+    if not quiz_session:
+        raise HTTPException(status_code=404, detail='Quiz session not found or not active')
+
+    # Check if session is expired
+    if quiz_session.timer_expires_at and datetime.utcnow() > quiz_session.timer_expires_at:
+        quiz_session.status = SessionStatus.EXPIRED
+        quiz_session.is_active = False
+        db.commit()
+        raise HTTPException(status_code=400, detail='Quiz session has expired')
+
+    # Validate question belongs to this session
+    session_question = db.query(QuizSessionQuestion).filter(
+        QuizSessionQuestion.quiz_session_id == request.quiz_session_id,
+        QuizSessionQuestion.question_id == request.question_id
+    ).first()
+
+    if not session_question:
+        raise HTTPException(status_code=400, detail='Question does not belong to this quiz session')
+
+    # Check if question already answered
+    existing_answer = db.query(UserAnswer).filter(
+        UserAnswer.quiz_session_id == request.quiz_session_id,
+        UserAnswer.question_id == request.question_id
+    ).first()
+
+    if existing_answer:
+        raise HTTPException(status_code=400, detail='Question already answered')
+
+    # Get the actual question to validate answer
+    question = db.query(Question).filter(Question.id == request.question_id).first()
+
+    if not question:
+        raise HTTPException(status_code=404, detail='Question not found')
+
+    # Validate user answer format
+    user_answer = request.user_answer.upper()
+    if user_answer not in ['A', 'B', 'C', 'D']:
+        raise HTTPException(status_code=400, detail='Invalid answer format, Must be A, B, C, or D')
+
+    # Check if answer is correct
+    is_correct = user_answer == question.correct_answer.upper()
+
+    # Calculate time taken (you might want to track question start time)
+    time_taken = 30  # Default, you can implement proper timing
+
+    # Record the answer
+    user_answer_record = UserAnswer(
+        quiz_session_id=request.quiz_session_id,
+        question_id=request.question_id,
+        user_answer=user_answer,
+        is_correct=is_correct,
+        time_taken_seconds=time_taken,
+        answered_at=datetime.utcnow()
+    )
+    db.add(user_answer_record)
+
+    # Update session progress
+    quiz_session.questions_answered += 1
+    quiz_session.last_activity_at = datetime.utcnow()
+
+    if is_correct:
+        quiz_session.correct_answers += 1
+
+    # Mark session question as answered
+    session_question.is_answered = True
+
+    # Check if quiz is completed
+    session_completed = quiz_session.questions_answered >= quiz_session.total_questions
+    next_question_order = None
+
+    if session_completed:
+        quiz_session.status = SessionStatus.COMPLETED
+        quiz_session.is_active = False
+        quiz_session.completed_at = datetime.utcnow()
+
+        # Calculate rewards (XP, coins)
+        score_percentage = (quiz_session.correct_answers / quiz_session.total_questions) * 100
+        quiz_session.xp_earned = int(score_percentage * 2)  # 2 XP per percentage point
+        quiz_session.coins_earned = quiz_session.correct_answers * 10  # 10 coins per correct answer
+    else:
+        quiz_session.status = SessionStatus.IN_PROGRESS
+        # Get next question order
+        next_question_order = quiz_session.questions_answered + 1
+
+    db.commit()
+
+    # Calculate score percentage
+    score_percentage = (quiz_session.correct_answers / quiz_session.questions_answered) * 100
+
+    # Prepare response
+    message = "Correct! ✅" if is_correct else "Incorrect! ❌"
+    if session_completed:
+        message += f'Quiz completed! Final score: {quiz_session.correct_answers}/{quiz_session.total_questions}'
+
+    return SubmitAnswerResponse(
+        is_correct=is_correct,
+        correct_answer=question.correct_answer,
+        # explanation=question.explanation,
+        current_score=quiz_session.correct_answers,
+        questions_answered=quiz_session.questions_answered,
+        total_questions=quiz_session.total_questions,
+        score_percentage=round(score_percentage, 2),
+        session_completed=session_completed,
+        next_question_order=next_question_order,
+        message=message
+    )
+
+
+'''
+@router.get('/start/progress/{quiz_session_id}', response_model=QuizProgressResponse)
+def get_quiz_progress(quiz_session_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """ get current progress of quiz session
+    """
+
+    quiz_session = db.query(QuizSession).filter(
+        QuizSession.id == quiz_session_id,
+        QuizSession.user_id == current_user.id
+    ).first()
+
+    if not quiz_session:
+        raise HTTPException(status_code=404, detai='Quiz session not found')
+
+    # Calculate time remaining
+    time_remaining_seconds = None
+    if quiz_session.timer_expires_at:
+        remaining = quiz_session.timer_expires_at - datetime.utcnow()
+        time_remaining_seconds = max(0, int(remaining.total_seconds()))
+
+    score_percentage = 0
+    if quiz_session.questions_answered > 0:
+        score_percentage = (quiz_session.correct_answers / quiz_session.questions_answered) * 100
+
+    return QuizProgressResponse(
+        quiz_session_id=quiz_session.id,
+        status=quiz_session.status.value,
+        current_question=quiz_session.current_question_index,
+        questions_answered=quiz_session.questions_answered,
+        total_questions=quiz_session.total_questions,
+        correct_answers=quiz_session.correct_answers,
+        score_percentage=round(score_percentage, 2),
+        time_remaining_seconds=time_remaining_seconds,
+        is_completed=quiz_session.status == SessionStatus.COMPLETED
+    )
+'''
+
+'''
+@router.get('/quiz/results/{quiz_session_id}')
+def get_quiz_results(quiz_session_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """ Get detailed results after quiz completion
+    """
+
+    quiz_session = db.query(QuizSession).filter(
+        QuizSession.id == quiz_session_id,
+        QuizSession.user_id == current_user.id,
+        QuizSession.status == SessionStatus.COMPLETED
+    ).first()
+
+    if not quiz_session:
+        raise HTTPException(status_code=404, detail='Completed quiz session not found')
+
+    # Get all answers with question details
+    answers = db.query(UserAnswer).join(Question).filter(
+        UserAnswer.quiz_session_id == quiz_session_id
+    ).all()
+
+    answers_breakdown = [
+        question_id = answer.question_id,
+        question_text = answer.question_text,
+        user_answer = answer.user_answer,
+        correct_answer = answer.question.correct_answer,
+        is_correct = answer.is_correct,
+        time_taken_seconds = answer.time_taken_seconds
+    ] for answer in answers
+
+    total_time = None
+    if quiz_session.completed_at and quiz_session.started_at:
+        total_time = quiz_session.completed_at - quiz_session.started_at
+
+    return {
+        'quiz_session_id': quiz_session.id,
+        'final_score': quiz_session.correct_answers,
+        'total_questions': quiz_session.total_questions,
+        'score_percentage': round((quiz_session.correct_answers / quiz_session.total_questions) * 100, 2),
+        'xp_earned': quiz_session.xp_earned,
+        'coins_earned': quiz_session.coins_earned,
+        'total_time': str(total_time) if total_time else None,
+        'difficulty_level': quiz_session.category_id,
+        'answers_breakdown': answers_breakdown
+    }
+'''
