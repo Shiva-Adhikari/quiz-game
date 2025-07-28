@@ -79,3 +79,10 @@ class QuizProgressResponse(BaseModel):
     score_percentage: float
     time_remaining_seconds: Optional[int] = None
     is_completed: bool
+
+
+class StartCategoryQuizRequest(BaseModel):
+    category_id: int
+    total_questions: int
+    time_limit_minutes: Optional[int] = None
+    difficulty_level: Optional[str] = None  # 'easy', 'medium', 'hard', 'mixed'
