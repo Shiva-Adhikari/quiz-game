@@ -417,3 +417,105 @@ def daily_challenge_answer(request: AnswerSubmissionRequest, db: Session = Depen
 
         case _:
             raise HTTPException(status_code=400, detail=f"Unknown challenge type: {challenge_type}")
+
+
+@router.get('/daily-challenge/progress')
+def get_daily_challenge_progress(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get user's progress on today's daily challenge"""
+
+    # Get today's challenge
+    daily_challenge = get_today_challenge(db)  # Fixed function name
+
+    if not daily_challenge:
+        todays_challenge_type = get_today_challenge_type()  # Fixed function name
+        return {
+            "challenge_available": True,
+            "challenge_type": todays_challenge_type,
+            "challenge_info": get_challenge_info(todays_challenge_type),
+            "has_attempted": False,
+            "message": "Daily challenge available - not started yet"
+        }
+
+    # Get user's attempt
+    attempt = db.query(UserChallengeAttempt).filter(
+        UserChallengeAttempt.user_id == current_user.id,
+        UserChallengeAttempt.daily_challenge_id == daily_challenge.id
+    ).first()
+
+    if not attempt:
+        return {
+            "challenge_available": True,
+            "challenge_type": daily_challenge.challenge_type,
+            "challenge_info": get_challenge_info(daily_challenge.challenge_type),
+            "has_attempted": False,
+            "message": "Daily challenge available - not started yet"
+        }
+
+    # Build challenge-specific progress data
+    challenge_progress = get_challenge_progress_data(daily_challenge.challenge_type, attempt)
+
+    return {
+        "challenge_available": True,
+        "challenge_type": daily_challenge.challenge_type,
+        "challenge_info": get_challenge_info(daily_challenge.challenge_type),
+        "has_attempted": True,
+        "status": attempt.status.value,
+        "current_streak": attempt.current_streak,
+        "max_streak": attempt.max_streak,
+        "questions_answered": attempt.questions_answered,
+        "correct_answers": attempt.correct_answers,
+        "wrong_answers": attempt.wrong_answers,
+        "accuracy": attempt.accuracy_percentage,
+        "is_completed": attempt.is_completed,
+        "is_successful": attempt.is_successful,
+        "final_score": attempt.final_score,
+        "started_at": attempt.started_at,
+        "completed_at": attempt.completed_at,
+        **challenge_progress  # Merge challenge-specific data
+    }
+
+
+def get_challenge_progress_data(challenge_type: str, attempt: UserChallengeAttempt) -> dict:
+    """Get challenge-specific progress data"""
+    match challenge_type:
+        case 'survival_mode':
+            return {"lives_remaining": 3 - attempt.wrong_answers}
+        case 'marathon_mode':
+            return {"questions_remaining": 25 - attempt.questions_answered}
+        case 'perfect_score':
+            return {
+                "questions_remaining": 10 - attempt.questions_answered,
+                "perfect_streak": attempt.wrong_answers == 0
+            }
+        case 'speed_challenge':
+            return {"questions_remaining": 10 - attempt.questions_answered}
+        case _:
+            return {}
+
+
+@router.get('/today-challenge')
+def get_today_challenge_info(db: Session = Depends(get_db)):
+    """Get information about today's challenge"""
+
+    # Get today's challenge type
+    todays_challenge_type = get_today_challenge_type()  # Fixed function name
+
+    # Get challenge details
+    challenge_info = get_challenge_info(todays_challenge_type)
+
+    # Get daily schedule  
+    daily_schedule = get_daily_schedule()
+
+    # Check if challenge already exists in database
+    existing_challenge = get_today_challenge(db)
+
+    return {
+        "today_challenge": todays_challenge_type,
+        "challenge_info": challenge_info,
+        "daily_schedule": daily_schedule,
+        "challenge_created": existing_challenge is not None,
+        "challenge_date": existing_challenge.challenge_date.strftime('%Y-%m-%d') if existing_challenge else None
+    }
