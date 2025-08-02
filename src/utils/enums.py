@@ -8,10 +8,12 @@ class DifficultyLevel(Enum):
 
 
 class SessionStatus(str, Enum):
+    NOT_STARTED = "not_started"
     STARTED = "started"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     EXPIRED = "expired"
+    FAILED = "failed"
     ABANDONED = 'abandoned'
 
 
@@ -35,8 +37,15 @@ class UserSessionStatus(str, Enum):
     TERMINATED = "terminated"
 
 
+class ChallengeStatus(str, Enum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
 # ##################################################
 
+'''
 class AnswerOption(str, Enum):
     A = "A"
     B = "B"
@@ -57,3 +66,4 @@ class RoomType(str, Enum):
     USER_CREATED = 'user_created'
     TOURNAMENT = 'tournament'
     PRIVATE = 'private'
+'''

@@ -8,6 +8,7 @@ from src.api.authentication import router as authentication_router
 from src.api.questions import router as question_router
 from src.api.quiz_random import router as start_random_quiz_router
 from src.api.quiz_category import router as start_category_quiz_router
+from src.api.challenge_daily import router as start_challenge_daily_router
 
 
 create_tables()
@@ -29,6 +30,7 @@ app.include_router(authentication_router, prefix='/api/v1')
 app.include_router(question_router, prefix='/api/v1')
 app.include_router(start_random_quiz_router, prefix='/api/v1')
 app.include_router(start_category_quiz_router, prefix='/api/v1')
+app.include_router(start_challenge_daily_router, prefix='/api/v1')
 
 
 if __name__ == '__main__':
