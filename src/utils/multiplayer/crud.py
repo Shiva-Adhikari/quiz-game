@@ -17,6 +17,13 @@ def create_room(db: Session, room_data: RoomCreate, user_id: int):
     while db.query(MultiplayerRoom).filter(MultiplayerRoom.room_code == room_code).first():
         room_code = generate_room_code()
     
+    # Handle password logic based on room type
+    final_password = None
+    if not room_data.is_public:
+        # Private room - use provided password
+        final_password = room_data.room_password
+    # For public rooms, final_password remains None (no password)
+    
     db_room = MultiplayerRoom(
         room_code=room_code,
         room_name=room_data.room_name,
@@ -27,7 +34,7 @@ def create_room(db: Session, room_data: RoomCreate, user_id: int):
         total_questions=room_data.total_questions,
         time_per_question=room_data.time_per_question,
         is_public=room_data.is_public,
-        room_password=room_data.room_password,
+        room_password=final_password,  # None for public, actual password for private
         current_players=1
     )
     
@@ -60,9 +67,20 @@ def join_room(db: Session, room_code: str, user_id: int, password: Optional[str]
     if not room:
         raise ValueError("Room not found or not available")
     
-    # Check password if required
-    if room.room_password and room.room_password != password:
-        raise ValueError("Incorrect room password")
+    # Password validation logic
+    if room.is_public:
+        # Public room - should never have password, but double-check
+        if room.room_password is not None:
+            raise ValueError("Invalid room configuration")  # This shouldn't happen
+        # No password check needed for public rooms
+    else:
+        # Private room - password is required
+        if not room.room_password:
+            raise ValueError("Invalid room configuration")  # This shouldn't happen
+        if not password:
+            raise ValueError("Password required for private room")
+        if room.room_password != password:
+            raise ValueError("Incorrect room password")
     
     # Check if user already in room
     existing = db.query(RoomParticipant).filter(
@@ -169,76 +187,86 @@ def start_game_session(db: Session, room_id: int, question_ids: List[int]):
     return game_session
 
 
+# Updated CRUD function to handle errors better
 def submit_player_answer(db: Session, room_id: int, user_id: int, answer_data: SubmitAnswerRequest, correct_answer: str, time_limit: int):
-    # Get participant
-    participant = db.query(RoomParticipant).filter(
-        and_(
-            RoomParticipant.room_id == room_id,
-            RoomParticipant.user_id == user_id,
-            RoomParticipant.is_active
+    try:
+        # Get participant
+        participant = db.query(RoomParticipant).filter(
+            and_(
+                RoomParticipant.room_id == room_id,
+                RoomParticipant.user_id == user_id,
+                RoomParticipant.is_active
+            )
+        ).first()
+        
+        if not participant:
+            raise ValueError("You are not a participant in this room")
+        
+        # Get current game session
+        game_session = db.query(GameSession).filter(
+            and_(
+                GameSession.room_id == room_id,
+                GameSession.status == "active"
+            )
+        ).first()
+        
+        if not game_session:
+            raise ValueError("No active game session found")
+        
+        # Check if already answered this question
+        existing_answer = db.query(PlayerAnswer).filter(
+            and_(
+                PlayerAnswer.game_session_id == game_session.id,
+                PlayerAnswer.participant_id == participant.id,
+                PlayerAnswer.question_id == answer_data.question_id
+            )
+        ).first()
+        
+        if existing_answer:
+            raise ValueError("You have already answered this question")
+        
+        # Validate time taken
+        if answer_data.time_taken > time_limit + 5:  # 5 second buffer for network delays
+            raise ValueError("Answer submitted too late")
+        
+        # Calculate score
+        is_correct = answer_data.selected_answer.upper() == correct_answer.upper()
+        score = calculate_quiz_score(is_correct, answer_data.time_taken, time_limit)
+        
+        # Create answer record
+        player_answer = PlayerAnswer(
+            game_session_id=game_session.id,
+            participant_id=participant.id,
+            question_id=answer_data.question_id,
+            selected_answer=answer_data.selected_answer.upper(),
+            is_correct=is_correct,
+            time_taken=answer_data.time_taken,
+            score_earned=score
         )
-    ).first()
-    
-    if not participant:
-        raise ValueError("Participant not found")
-    
-    # Get current game session
-    game_session = db.query(GameSession).filter(
-        and_(
-            GameSession.room_id == room_id,
-            GameSession.status == "active"
-        )
-    ).first()
-    
-    if not game_session:
-        raise ValueError("No active game session")
-    
-    # Check if already answered this question
-    existing_answer = db.query(PlayerAnswer).filter(
-        and_(
-            PlayerAnswer.game_session_id == game_session.id,
-            PlayerAnswer.participant_id == participant.id,
-            PlayerAnswer.question_id == answer_data.question_id
-        )
-    ).first()
-    
-    if existing_answer:
-        raise ValueError("Already answered this question")
-    
-    # Calculate score
-    is_correct = answer_data.selected_answer == correct_answer
-    score = calculate_quiz_score(is_correct, answer_data.time_taken, time_limit)
-    
-    # Create answer record
-    player_answer = PlayerAnswer(
-        game_session_id=game_session.id,
-        participant_id=participant.id,
-        question_id=answer_data.question_id,
-        selected_answer=answer_data.selected_answer,
-        is_correct=is_correct,
-        time_taken=answer_data.time_taken,
-        score_earned=score
-    )
-    
-    db.add(player_answer)
-    
-    # Update participant stats
-    participant.total_score += score
-    if is_correct:
-        participant.correct_answers += 1
-    else:
-        participant.wrong_answers += 1
-    
-    # Update average time
-    total_answers = participant.correct_answers + participant.wrong_answers
-    if total_answers == 1:
-        participant.average_time = answer_data.time_taken
-    else:
-        participant.average_time = ((participant.average_time * (total_answers - 1)) + answer_data.time_taken) / total_answers
-    
-    db.commit()
-    
-    return {"answer": player_answer, "participant": participant}
+        
+        db.add(player_answer)
+        
+        # Update participant stats
+        participant.total_score += score
+        if is_correct:
+            participant.correct_answers += 1
+        else:
+            participant.wrong_answers += 1
+        
+        # Update average time
+        total_answers = participant.correct_answers + participant.wrong_answers
+        if total_answers == 1:
+            participant.average_time = answer_data.time_taken
+        else:
+            participant.average_time = ((participant.average_time * (total_answers - 1)) + answer_data.time_taken) / total_answers
+        
+        db.commit()
+        
+        return {"answer": player_answer, "participant": participant}
+        
+    except Exception as e:
+        db.rollback()
+        raise e
 
 
 def get_current_question_index(db: Session, room_id: int):

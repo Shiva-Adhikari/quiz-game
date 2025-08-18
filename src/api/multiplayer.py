@@ -32,8 +32,11 @@ def create_room(
     try:
         room = crud.create_room(db, room_data, current_user.id)
         return room
-    except Exception as e:
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to create room")
+
 
 @router.get("/rooms/browse", response_model=List[RoomResponse])
 def browse_rooms(
@@ -41,6 +44,7 @@ def browse_rooms(
     limit: int = 20,
     db: Session = Depends(get_db)
 ):
+    """Browse only public rooms (no password required)"""
     rooms = crud.get_public_rooms(db, skip, limit)
     return rooms
 
@@ -62,7 +66,8 @@ def join_room(
             "message": "Successfully joined room",
             "room_id": room.id,
             "room_code": room.room_code,
-            "participant_id": participant.id
+            "participant_id": participant.id,
+            "room_type": "public" if room.is_public else "private"
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -169,47 +174,64 @@ async def start_game(
 
 
 @router.post("/rooms/{room_id}/answer")
-def submit_answer(
+async def submit_answer(  # Make it async
     room_id: int,
     answer: SubmitAnswerRequest,
-    current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
 ):
     try:
-        # Get current question's correct answer (normally from Question table)
-        correct_answer = get_mock_correct_answer(answer.question_id)
-        
+        # First, get the room to ensure it exists and is in progress
         room_data = crud.get_room_with_participants(db, room_id)
         if not room_data:
             raise HTTPException(status_code=404, detail="Room not found")
         
         room = room_data["room"]
         
+        # Check if room is in progress
+        if room.status != "in_progress":
+            raise HTTPException(status_code=400, detail="Game is not in progress")
+        
+        # Verify user is a participant
+        user_is_participant = any(
+            p.user_id == current_user.id and p.is_active 
+            for p in room_data["participants"]
+        )
+        if not user_is_participant:
+            raise HTTPException(status_code=403, detail="You are not a participant in this room")
+        
+        # Get current question's correct answer
+        # You'll need to implement this based on your Question model
+        correct_answer = get_correct_answer_for_question(db, answer.question_id)
+        if not correct_answer:
+            raise HTTPException(status_code=400, detail="Invalid question ID")
+        
         # Submit answer
         result = crud.submit_player_answer(
             db, room_id, current_user.id, answer, correct_answer, room.time_per_question
         )
         
-        # Notify game engine
+        # Notify game engine if it exists
         if room_id in active_games:
-            asyncio.create_task(
-                active_games[room_id].process_player_answer(current_user.id, {
-                    "question_id": answer.question_id,
-                    "selected_answer": answer.selected_answer,
-                    "time_taken": answer.time_taken
-                })
-            )
+            await active_games[room_id].process_player_answer(current_user.id, {
+                "question_id": answer.question_id,
+                "selected_answer": answer.selected_answer,
+                "time_taken": answer.time_taken
+            })
         
         return {
-            "message": "Answer submitted",
+            "message": "Answer submitted successfully",
             "is_correct": result["answer"].is_correct,
             "score_earned": result["answer"].score_earned,
             "total_score": result["participant"].total_score
         }
         
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
+    except Exception as e:
+        print(f"Error in submit_answer: {e}")  # For debugging
         raise HTTPException(status_code=500, detail="Failed to submit answer")
 
 
@@ -331,3 +353,52 @@ def generate_mock_questions(total_questions: int, difficulty: str):
 def get_mock_correct_answer(question_id: int) -> str:
     """Get correct answer for question - replace with database query"""
     return "A"  # Mock correct answer
+
+
+# '''
+# Helper function to get correct answer - implement this based on your Question model
+def get_correct_answer_for_question(db: Session, question_id: int) -> str:
+    """
+    Get the correct answer for a given question ID
+    Replace this with actual database query to your Question table
+    """
+    # Example implementation - replace with your actual Question model query
+    # question = db.query(Question).filter(Question.id == question_id).first()
+    # if question:
+    #     return question.correct_answer
+    # return None
+    
+    # Temporary mock implementation for testing
+    mock_answers = {
+        1: "A", 2: "B", 3: "C", 4: "D", 5: "A",
+        6: "B", 7: "C", 8: "D", 9: "A", 10: "B"
+    }
+    return mock_answers.get(question_id, "A")
+
+
+'''
+# Alternative: If you're storing questions in the game session
+def get_correct_answer_from_session(db: Session, room_id: int, question_id: int) -> str:
+    """
+    Get correct answer from the game session's selected questions
+    """
+    game_session = db.query(GameSession).filter(
+        and_(
+            GameSession.room_id == room_id,
+            GameSession.status == "active"
+        )
+    ).first()
+    
+    if not game_session or not game_session.selected_questions:
+        return None
+    
+    try:
+        questions = json.loads(game_session.selected_questions)
+        for q in questions:
+            if q.get("id") == question_id:
+                return q.get("correct_answer")
+    except (json.JSONDecodeError, TypeError):
+        pass
+    
+    return None
+'''

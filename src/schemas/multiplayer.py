@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -13,25 +13,37 @@ class RoomCreate(BaseModel):
     is_public: bool = True
     room_password: Optional[str] = None
     
-    @field_validator('max_players')
-    @classmethod
+    @validator('max_players')
     def validate_max_players(cls, v):
         if v < 2 or v > 6:
             raise ValueError('Max players must be between 2 and 6')
         return v
     
-    @field_validator('difficulty_level')
-    @classmethod
+    @validator('difficulty_level')
     def validate_difficulty(cls, v):
         if v not in ['easy', 'medium', 'hard']:
             raise ValueError('Difficulty must be easy, medium, or hard')
         return v
     
-    @field_validator('total_questions')
-    @classmethod
+    @validator('total_questions')
     def validate_questions(cls, v):
         if v < 5 or v > 50:
             raise ValueError('Total questions must be between 5 and 50')
+        return v
+    
+    @validator('room_password')
+    def validate_password_logic(cls, v, values):
+        is_public = values.get('is_public', True)
+        
+        if is_public and v is not None:
+            raise ValueError('Public rooms cannot have passwords')
+        
+        if not is_public and (v is None or v.strip() == ""):
+            raise ValueError('Private rooms must have a password')
+            
+        if v and len(v) < 4:
+            raise ValueError('Password must be at least 4 characters long')
+            
         return v
 
 
@@ -45,9 +57,28 @@ class RoomResponse(BaseModel):
     difficulty_level: str
     host_user_id: int
     is_public: bool
+    has_password: bool = False  # New field to indicate if password is required
     created_at: datetime
     
-    model_config = {"from_attributes": True}
+    class Config:
+        from_attributes = True
+    
+    @classmethod
+    def from_orm(cls, room):
+        data = {
+            "id": room.id,
+            "room_code": room.room_code,
+            "room_name": room.room_name,
+            "current_players": room.current_players,
+            "max_players": room.max_players,
+            "status": room.status,
+            "difficulty_level": room.difficulty_level,
+            "host_user_id": room.host_user_id,
+            "is_public": room.is_public,
+            "has_password": room.room_password is not None,
+            "created_at": room.created_at
+        }
+        return cls(**data)
 
 
 class ParticipantResponse(BaseModel):
