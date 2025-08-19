@@ -6,7 +6,7 @@ from datetime import datetime
 class RoomCreate(BaseModel):
     room_name: str
     max_players: int = 4
-    category_id: Optional[int] = None
+    category_id: int
     difficulty_level: str = "medium"
     total_questions: int = 10
     time_per_question: int = 30
@@ -21,7 +21,7 @@ class RoomCreate(BaseModel):
     
     @validator('difficulty_level')
     def validate_difficulty(cls, v):
-        if v not in ['easy', 'medium', 'hard']:
+        if v not in ['easy', 'medium', 'hard', 'EASY', 'MEDIUM', 'HARD']:
             raise ValueError('Difficulty must be easy, medium, or hard')
         return v
     

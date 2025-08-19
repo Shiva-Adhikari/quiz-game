@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List
 import json
 import asyncio
@@ -8,13 +9,14 @@ from src.schemas.multiplayer import (
     RoomCreate, RoomResponse, RoomDetailResponse, JoinRoomRequest,
     PlayerReadyRequest, SubmitAnswerRequest, ParticipantResponse
 )
-from src.utils.multiplayer import crud
+import src.utils.multiplayer.crud as crud
 from src.utils.multiplayer.websocket_manager import manager
 from src.utils.multiplayer.game_engine import MultiplayerGameEngine
 from typing import Dict
 from datetime import datetime
 from src.utils.db import get_db
 from src.utils.get_current_user import get_current_user
+from src.models.questions import Question
 
 
 router = APIRouter(prefix="/multiplayer", tags=["multiplayer"])
@@ -147,9 +149,9 @@ async def start_game(
         
         # Get questions (this would normally query your Question table)
         # For now, using mock data structure
-        mock_questions = generate_mock_questions(room.total_questions, room.difficulty_level)
+        mock_questions = generate_mock_questions(db, room.total_questions, room.difficulty_level, room.category_id)
         question_ids = [q["id"] for q in mock_questions]
-        
+
         # Create game session
         game_session = crud.start_game_session(db, room_id, question_ids)
         
@@ -162,7 +164,8 @@ async def start_game(
         
         return {
             "message": "Game started",
-            "game_session_id": game_session.id
+            "game_session_id": game_session.id,
+            "questions": mock_questions
         }
         
     except HTTPException:
@@ -363,48 +366,55 @@ async def websocket_endpoint(
 
 
 # Helper functions for mock data (replace with actual database queries)
-def generate_mock_questions(total_questions: int, difficulty: str):
-    """Generate mock questions - replace with actual database query"""
-    questions = []
-    for i in range(total_questions):
-        questions.append({
-            "id": i + 1,
-            "question_text": f"Sample {difficulty} question {i + 1}?",
-            "option_a": "Option A",
-            "option_b": "Option B", 
-            "option_c": "Option C",
-            "option_d": "Option D",
-            "correct_answer": "A",  # Mock correct answer
-            "explanation": f"Explanation for question {i + 1}",
-            "difficulty": difficulty
-        })
-    return questions
+def generate_mock_questions(db: Session, total_questions: int, difficulty: str, category_id: int):
+    """Get real questions from database based on category and difficulty"""
+    query = db.query(Question).filter(
+        Question.category_id == category_id,
+        Question.is_active
+    )
+    
+    if difficulty != "mixed":
+        query = query.filter(Question.difficulty_level == difficulty)
+    
+    questions = query.order_by(func.random()).limit(total_questions).all()
+    
+    return [{
+        "id": q.id,
+        "question_text": q.question_text,
+        "option_a": q.option_a,
+        "option_b": q.option_b,
+        "option_c": q.option_c,
+        "option_d": q.option_d,
+        "correct_answer": q.correct_answer,
+        "explanation": getattr(q, 'explanation', ''),
+        "difficulty": q.difficulty_level
+    } for q in questions]
 
 
-def get_mock_correct_answer(question_id: int) -> str:
-    """Get correct answer for question - replace with database query"""
-    return "A"  # Mock correct answer
+# def get_mock_correct_answer(question_id: int) -> str:
+    # """Get correct answer for question - replace with database query"""
+    # return "A"  # Mock correct answer
 
 
 # '''
 # Helper function to get correct answer - implement this based on your Question model
-def get_correct_answer_for_question(db: Session, question_id: int) -> str:
+def get_correct_answer_for_question(db: Session, question_id: int) -> str | None:
     """
     Get the correct answer for a given question ID
     Replace this with actual database query to your Question table
     """
     # Example implementation - replace with your actual Question model query
-    # question = db.query(Question).filter(Question.id == question_id).first()
-    # if question:
-    #     return question.correct_answer
-    # return None
+    question = db.query(Question).filter(Question.id == question_id).first()
+    if question:
+        return question.correct_answer
+    return None
     
-    # Temporary mock implementation for testing
-    mock_answers = {
-        1: "A", 2: "B", 3: "C", 4: "D", 5: "A",
-        6: "B", 7: "C", 8: "D", 9: "A", 10: "B"
-    }
-    return mock_answers.get(question_id, "A")
+    # # Temporary mock implementation for testing
+    # mock_answers = {
+    #     1: "A", 2: "B", 3: "C", 4: "D", 5: "A",
+    #     6: "B", 7: "C", 8: "D", 9: "A", 10: "B"
+    # }
+    # return mock_answers.get(question_id, "A")
 
 
 '''
