@@ -344,41 +344,66 @@ def get_final_leaderboard(db: Session, room_id: int):
 
 
 def leave_room(db: Session, room_id: int, user_id: int):
-    participant = db.query(RoomParticipant).filter(
-        and_(
-            RoomParticipant.room_id == room_id,
-            RoomParticipant.user_id == user_id,
-            RoomParticipant.is_active
-        )
-    ).first()
-    
-    if not participant:
-        return None
-    
-    # Mark as inactive
-    participant.is_active = False
-    participant.left_at = datetime.utcnow()
-    
-    # Update room player count
-    room = db.query(MultiplayerRoom).filter(MultiplayerRoom.id == room_id).first()
-    if room:
-        room.current_players = max(0, room.current_players - 1)
+    try:
+        # Find the participant
+        participant = db.query(RoomParticipant).filter(
+            and_(
+                RoomParticipant.room_id == room_id,
+                RoomParticipant.user_id == user_id,
+                RoomParticipant.is_active
+            )
+        ).first()
         
-        # If host left, assign new host
-        if participant.is_host and room.current_players > 0:
-            new_host = db.query(RoomParticipant).filter(
-                and_(
-                    RoomParticipant.room_id == room_id,
-                    RoomParticipant.is_active,
-                    RoomParticipant.user_id != user_id
-                )
-            ).first()
+        if not participant:
+            return None
+        
+        # Mark as inactive
+        participant.is_active = False
+        participant.left_at = datetime.utcnow()
+        was_host = participant.is_host
+        
+        # Update room player count
+        room = db.query(MultiplayerRoom).filter(MultiplayerRoom.id == room_id).first()
+        if room:
+            room.current_players = max(0, room.current_players - 1)
             
-            if new_host:
-                new_host.is_host = True
-    
-    db.commit()
-    return participant
+            # If host left and there are still players, assign new host
+            if was_host and room.current_players > 0:
+                new_host = db.query(RoomParticipant).filter(
+                    and_(
+                        RoomParticipant.room_id == room_id,
+                        RoomParticipant.is_active,
+                        RoomParticipant.user_id != user_id
+                    )
+                ).first()
+                
+                if new_host:
+                    new_host.is_host = True
+                    room.host_user_id = new_host.user_id
+            
+            # If no players left, mark room as finished
+            if room.current_players == 0:
+                room.status = "finished"
+                
+                # Also finish any active game sessions
+                active_session = db.query(GameSession).filter(
+                    and_(
+                        GameSession.room_id == room_id,
+                        GameSession.status == "active"
+                    )
+                ).first()
+                
+                if active_session:
+                    active_session.status = "finished"
+                    active_session.finished_at = datetime.utcnow()
+        
+        db.commit()
+        return participant
+        
+    except Exception as e:
+        db.rollback()
+        print(f"Error in leave_room CRUD: {e}")
+        raise e
 
 
 def get_public_rooms(db: Session, skip: int = 0, limit: int = 20):

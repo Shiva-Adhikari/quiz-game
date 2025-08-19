@@ -158,9 +158,7 @@ async def start_game(
         active_games[room_id] = game_engine
         
         # Start game asynchronously
-        # asyncio.create_task(
         await game_engine.start_game(mock_questions, room.time_per_question)
-        # )
         
         return {
             "message": "Game started",
@@ -177,8 +175,8 @@ async def start_game(
 async def submit_answer(  # Make it async
     room_id: int,
     answer: SubmitAnswerRequest,
-    db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     try:
         # First, get the room to ensure it exists and is in progress
@@ -236,28 +234,61 @@ async def submit_answer(  # Make it async
 
 
 @router.post("/rooms/{room_id}/leave")
-def leave_room(
+async def leave_room(  # Make it async
     room_id: int,
     current_user=Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db)
 ):
     try:
+        # Check if room exists
+        room_data = crud.get_room_with_participants(db, room_id)
+        if not room_data:
+            raise HTTPException(status_code=404, detail="Room not found")
+        
+        # Check if user is actually in the room
+        user_participant = None
+        for participant in room_data["participants"]:
+            if participant.user_id == current_user.id and participant.is_active:
+                user_participant = participant
+                break
+        
+        if not user_participant:
+            raise HTTPException(status_code=400, detail="You are not in this room")
+        
+        # Leave the room
         participant = crud.leave_room(db, room_id, current_user.id)
         if not participant:
-            raise HTTPException(status_code=404, detail="Not in this room")
+            raise HTTPException(status_code=400, detail="Could not leave room")
         
-        # Broadcast player left
-        asyncio.create_task(
-            manager.send_to_room(room_id, "player_left", {
-                "user_id": current_user.id,
-                "was_host": participant.is_host
-            })
-        )
+        # Broadcast player left (await instead of create_task)
+        await manager.send_to_room(room_id, "player_left", {
+            "user_id": current_user.id,
+            "was_host": participant.is_host,
+            "player_name": getattr(current_user, 'username', f'User {current_user.id}')
+        })
         
-        return {"message": "Left room successfully"}
+        # Clean up game engine if room becomes empty
+        room_data_updated = crud.get_room_with_participants(db, room_id)
+        if room_data_updated and room_data_updated["room"].current_players == 0:
+            if room_id in active_games:
+                # Cancel any ongoing game timers
+                game_engine = active_games[room_id]
+                if hasattr(game_engine, 'question_timer_task') and game_engine.question_timer_task:
+                    game_engine.question_timer_task.cancel()
+                del active_games[room_id]
         
+        return {
+            "message": "Left room successfully",
+            "was_host": participant.is_host
+        }
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to leave room")
+        print(f"Error in leave_room: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to leave room: {str(e)}")
 
 
 @router.websocket("/rooms/{room_id}/ws")
@@ -402,3 +433,45 @@ def get_correct_answer_from_session(db: Session, room_id: int, question_id: int)
     
     return None
 '''
+
+
+# Additional helper route to check room status (useful for debugging)
+@router.get("/rooms/{room_id}/status")
+def get_room_status(
+    room_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get current room status for debugging"""
+    try:
+        room_data = crud.get_room_with_participants(db, room_id)
+        if not room_data:
+            raise HTTPException(status_code=404, detail="Room not found")
+        
+        room = room_data["room"]
+        participants = room_data["participants"]
+        
+        return {
+            "room_id": room.id,
+            "room_code": room.room_code,
+            "status": room.status,
+            "current_players": room.current_players,
+            "max_players": room.max_players,
+            "participants": [
+                {
+                    "user_id": p.user_id,
+                    "is_host": p.is_host,
+                    "is_active": p.is_active,
+                    "is_ready": p.is_ready
+                } for p in participants
+            ],
+            "user_in_room": any(
+                p.user_id == current_user.id and p.is_active 
+                for p in participants
+            )
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get room status: {str(e)}")
