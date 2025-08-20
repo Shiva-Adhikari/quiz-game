@@ -71,6 +71,20 @@ def register(user: UserRegister, db: Session = Depends(get_db)) -> UserResponse:
         )
         db.add(email_verification_table)
 
+        # === ADD THIS: Auto-create user profile ===
+        from src.models.user_profile import UserProfile  # Import your UserProfile model
+
+        user_profile = UserProfile(
+            user_id=user_table.id,
+            display_name=user.username,  # Use their username as display_name
+            total_xp=0,
+            current_level=1,
+            coins=0,
+            total_games_played=0
+        )
+        db.add(user_profile)
+        # === END ADDITION ===
+
         # commit both together
         db.commit()
         db.refresh(user_table)

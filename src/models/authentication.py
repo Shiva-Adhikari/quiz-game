@@ -43,6 +43,8 @@ class User(Base):
 
     # quiz_sessions: Mapped[list["QuizSession"]] = relationship('QuizSession', back_populates="user")
 
+    profile = relationship("UserProfile", back_populates="user", uselist=False)
+
 
 '''
 
