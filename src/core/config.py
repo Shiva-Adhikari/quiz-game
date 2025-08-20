@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     SENDER_PASSWORD: SecretStr
     EMAIL_HOST: SecretStr
     EMAIL_PORT: int
- 
+
     # === Room settings ===
     ROOM_CODE_LENGTH: int
     MAX_PLAYERS_PER_ROOM: int
@@ -35,12 +35,12 @@ class Settings(BaseSettings):
     DEFAULT_QUESTION_TIME: int
     ROOM_IDLE_TIMEOUT: int
     QUESTION_TIMEOUT_BUFFER: int
-    
+
     # === Score calculation ===
     BASE_CORRECT_SCORE: int
     SPEED_BONUS_MAX: int
     WRONG_ANSWER_PENALTY: int
-    
+
     # === JWT settings ===
     SECRET_KEY: SecretStr
     ALGORITHM: SecretStr

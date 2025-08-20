@@ -39,6 +39,24 @@ def random_quiz(request: StartQuizRequest, db: Session = Depends(get_db), curren
 
     random_questions = query.order_by(func.random()).limit(request.total_questions).all()
 
+    ''' # for increase performance in large dataset this is better way than top 2 variables (query, random_questions)
+    # Step 1: Count total questions
+    total_count = session.query(Question).count()  # e.g., 1000 questions
+
+    # Step 2: Calculate random starting point
+    request.total_questions = 10  # Want 10 questions
+    random_offset = random.randint(0, max(0, 1000 - 10))  # Random number 0-990
+
+    # Step 3: Skip to random position and take 10
+    questions = session.query(Question).offset(random_offset).limit(10).all()
+
+    # # OR BOTH IS SAME
+    # questions = session.query(Question)\
+        # .offset(random_offset)\    # Skip first 'random_offset' rows
+        # .limit(10)\               # Take next 10 rows
+        # .all()
+    '''
+
     '''
     if len(random_questions) < request.total_questions:
         raise HTTPException(status_code=400, detail=f'Not enough questions available, Found {len(random_questions)}, need {request.total_questions}')
