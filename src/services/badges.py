@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from sqlalchemy import func
+from sqlalchemy import func, select, and_
 from typing import List, Optional, Dict, Any, Tuple
 from src.models.badges import Badge, UserBadge
 from src.models.quiz_session import QuizSession  # Assuming this exists
@@ -69,16 +69,16 @@ class BadgeService:
     # BASIC BADGE OPERATIONS
     # ===============================================================
     
-    def get_all_badges(self) -> List[Badge]:
-        """Get all active badges"""
-        badges = self.db.query(Badge).filter(
-            Badge.is_active
-        ).order_by(Badge.created_at.asc()).all()
-        return badges
+    # def get_all_badges(self) -> List[Badge]:
+    #     """Get all active badges"""
+    #     badges = self.db.query(Badge).filter(
+    #         Badge.is_active
+    #     ).order_by(Badge.created_at.asc()).all()
+    #     return badges
     
-    def get_badge_by_id(self, badge_id: int) -> Optional[Badge]:
-        """Get single badge by ID"""
-        return self.db.get(Badge, badge_id)
+    # def get_badge_by_id(self, badge_id: int) -> Optional[Badge]:
+    #     """Get single badge by ID"""
+    #     return self.db.get(Badge, badge_id)
     
     def get_user_badges(self, user_id: int) -> List[UserBadge]:
         """Get all badges earned by a user"""
