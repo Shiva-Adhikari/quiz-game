@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import and_,
+from sqlalchemy import and_
 from src.models.multiplayer import MultiplayerRoom, RoomParticipant, GameSession, PlayerAnswer
 from src.schemas.multiplayer import RoomCreate, SubmitAnswerRequest
 from src.utils.multiplayer.utils import generate_room_code, calculate_quiz_score
@@ -10,18 +10,18 @@ from datetime import datetime, timezone
 
 def create_room(db: Session, room_data: RoomCreate, user_id: int):
     room_code = generate_room_code()
-    
+
     # Ensure unique room code
     while db.query(MultiplayerRoom).filter(MultiplayerRoom.room_code == room_code).first():
         room_code = generate_room_code()
-    
+
     # Handle password logic based on room type
     final_password = None
     if not room_data.is_public:
         # Private room - use provided password
         final_password = room_data.room_password
     # For public rooms, final_password remains None (no password)
-    
+
     db_room = MultiplayerRoom(
         room_code=room_code,
         room_name=room_data.room_name,
@@ -35,10 +35,10 @@ def create_room(db: Session, room_data: RoomCreate, user_id: int):
         room_password=final_password,  # None for public, actual password for private
         current_players=1
     )
-    
+
     db.add(db_room)
     db.flush()
-    
+
     # Add host as participant
     host_participant = RoomParticipant(
         room_id=db_room.id,
@@ -46,11 +46,11 @@ def create_room(db: Session, room_data: RoomCreate, user_id: int):
         is_host=True,
         is_ready=False
     )
-    
+
     db.add(host_participant)
     db.commit()
     db.refresh(db_room)
-    
+
     return db_room
 
 
@@ -61,10 +61,10 @@ def join_room(db: Session, room_code: str, user_id: int, password: Optional[str]
             MultiplayerRoom.status == "waiting"
         )
     ).first()
-    
+
     if not room:
         raise ValueError("Room not found or not available")
-    
+
     # Password validation logic
     if room.is_public:
         # Public room - should never have password, but double-check
@@ -79,7 +79,7 @@ def join_room(db: Session, room_code: str, user_id: int, password: Optional[str]
             raise ValueError("Password required for private room")
         if room.room_password != password:
             raise ValueError("Incorrect room password")
-    
+
     # Check if user already in room
     existing = db.query(RoomParticipant).filter(
         and_(
@@ -88,14 +88,14 @@ def join_room(db: Session, room_code: str, user_id: int, password: Optional[str]
             RoomParticipant.is_active
         )
     ).first()
-    
+
     if existing:
         raise ValueError("You are already in this room")
-    
+
     # Check room capacity
     if room.current_players >= room.max_players:
         raise ValueError("Room is full")
-    
+
     # Add participant
     participant = RoomParticipant(
         room_id=room.id,
@@ -103,15 +103,15 @@ def join_room(db: Session, room_code: str, user_id: int, password: Optional[str]
         is_host=False,
         is_ready=False
     )
-    
+
     db.add(participant)
-    
+
     # Update room player count
     room.current_players += 1
-    
+
     db.commit()
     db.refresh(participant)
-    
+
     return participant
 
 
@@ -119,14 +119,14 @@ def get_room_with_participants(db: Session, room_id: int):
     room = db.query(MultiplayerRoom).filter(MultiplayerRoom.id == room_id).first()
     if not room:
         return None
-    
+
     participants = db.query(RoomParticipant).filter(
         and_(
             RoomParticipant.room_id == room_id,
             RoomParticipant.is_active
         )
     ).all()
-    
+
     return {"room": room, "participants": participants}
 
 
@@ -142,13 +142,13 @@ def update_player_ready(db: Session, room_id: int, user_id: int, is_ready: bool)
             RoomParticipant.is_active
         )
     ).first()
-    
+
     if not participant:
         raise ValueError("Participant not found")
-    
+
     participant.is_ready = is_ready
     db.commit()
-    
+
     # Check if all players are ready
     all_participants = db.query(RoomParticipant).filter(
         and_(
@@ -156,9 +156,9 @@ def update_player_ready(db: Session, room_id: int, user_id: int, is_ready: bool)
             RoomParticipant.is_active
         )
     ).all()
-    
+
     all_ready = all(p.is_ready for p in all_participants) and len(all_participants) >= 2
-    
+
     return {"participant": participant, "all_ready": all_ready}
 
 
@@ -166,22 +166,22 @@ def start_game_session(db: Session, room_id: int, question_ids: List[int]):
     room = db.query(MultiplayerRoom).filter(MultiplayerRoom.id == room_id).first()
     if not room:
         raise ValueError("Room not found")
-    
+
     # Create game session
     game_session = GameSession(
         room_id=room_id,
         selected_questions=json.dumps(question_ids),
         current_question_index=0
     )
-    
+
     db.add(game_session)
-    
+
     # Update room status
     room.status = "in_progress"
-    
+
     db.commit()
     db.refresh(game_session)
-    
+
     return game_session
 
 
@@ -196,10 +196,10 @@ def submit_player_answer(db: Session, room_id: int, user_id: int, answer_data: S
                 RoomParticipant.is_active
             )
         ).first()
-        
+
         if not participant:
             raise ValueError("You are not a participant in this room")
-        
+
         # Get current game session
         game_session = db.query(GameSession).filter(
             and_(
@@ -207,10 +207,10 @@ def submit_player_answer(db: Session, room_id: int, user_id: int, answer_data: S
                 GameSession.status == "active"
             )
         ).first()
-        
+
         if not game_session:
             raise ValueError("No active game session found")
-        
+
         # Check if already answered this question
         existing_answer = db.query(PlayerAnswer).filter(
             and_(
@@ -219,18 +219,18 @@ def submit_player_answer(db: Session, room_id: int, user_id: int, answer_data: S
                 PlayerAnswer.question_id == answer_data.question_id
             )
         ).first()
-        
+
         if existing_answer:
             raise ValueError("You have already answered this question")
-        
+
         # Validate time taken
         if answer_data.time_taken > time_limit + 5:  # 5 second buffer for network delays
             raise ValueError("Answer submitted too late")
-        
+
         # Calculate score
         is_correct = answer_data.selected_answer.upper() == correct_answer.upper()
         score = calculate_quiz_score(is_correct, answer_data.time_taken, time_limit)
-        
+
         # Create answer record
         player_answer = PlayerAnswer(
             game_session_id=game_session.id,
@@ -241,27 +241,27 @@ def submit_player_answer(db: Session, room_id: int, user_id: int, answer_data: S
             time_taken=answer_data.time_taken,
             score_earned=score
         )
-        
+
         db.add(player_answer)
-        
+
         # Update participant stats
         participant.total_score += score
         if is_correct:
             participant.correct_answers += 1
         else:
             participant.wrong_answers += 1
-        
+
         # Update average time
         total_answers = participant.correct_answers + participant.wrong_answers
         if total_answers == 1:
             participant.average_time = answer_data.time_taken
         else:
             participant.average_time = ((participant.average_time * (total_answers - 1)) + answer_data.time_taken) / total_answers
-        
+
         db.commit()
-        
+
         return {"answer": player_answer, "participant": participant}
-        
+
     except Exception as e:
         db.rollback()
         raise e
@@ -274,7 +274,7 @@ def get_current_question_index(db: Session, room_id: int):
             GameSession.status == "active"
         )
     ).first()
-    
+
     return game_session.current_question_index if game_session else 0
 
 
@@ -285,12 +285,12 @@ def advance_question(db: Session, room_id: int):
             GameSession.status == "active"
         )
     ).first()
-    
+
     if game_session:
         game_session.current_question_index += 1
         db.commit()
         return game_session.current_question_index
-    
+
     return 0
 
 
@@ -302,16 +302,16 @@ def finish_game(db: Session, room_id: int):
             GameSession.status == "active"
         )
     ).first()
-    
+
     if room:
         room.status = "finished"
-    
+
     if game_session:
         game_session.status = "finished"
         game_session.finished_at = datetime.now(timezone.utc)
-    
+
     db.commit()
-    
+
     return get_final_leaderboard(db, room_id)
 
 
@@ -326,7 +326,7 @@ def get_final_leaderboard(db: Session, room_id: int):
         RoomParticipant.correct_answers.desc(),
         RoomParticipant.average_time.asc()
     ).all()
-    
+
     leaderboard = []
     for i, p in enumerate(participants):
         leaderboard.append({
@@ -337,7 +337,7 @@ def get_final_leaderboard(db: Session, room_id: int):
             "wrong_answers": p.wrong_answers,
             "average_time": round(p.average_time, 2)
         })
-    
+
     return leaderboard
 
 
@@ -351,20 +351,20 @@ def leave_room(db: Session, room_id: int, user_id: int):
                 RoomParticipant.is_active
             )
         ).first()
-        
+
         if not participant:
             return None
-        
+
         # Mark as inactive
         participant.is_active = False
         participant.left_at = datetime.now(timezone.utc)
         was_host = participant.is_host
-        
+
         # Update room player count
         room = db.query(MultiplayerRoom).filter(MultiplayerRoom.id == room_id).first()
         if room:
             room.current_players = max(0, room.current_players - 1)
-            
+
             # If host left and there are still players, assign new host
             if was_host and room.current_players > 0:
                 new_host = db.query(RoomParticipant).filter(
@@ -374,15 +374,15 @@ def leave_room(db: Session, room_id: int, user_id: int):
                         RoomParticipant.user_id != user_id
                     )
                 ).first()
-                
+
                 if new_host:
                     new_host.is_host = True
                     room.host_user_id = new_host.user_id
-            
+
             # If no players left, mark room as finished
             if room.current_players == 0:
                 room.status = "finished"
-                
+
                 # Also finish any active game sessions
                 active_session = db.query(GameSession).filter(
                     and_(
@@ -390,14 +390,14 @@ def leave_room(db: Session, room_id: int, user_id: int):
                         GameSession.status == "active"
                     )
                 ).first()
-                
+
                 if active_session:
                     active_session.status = "finished"
                     active_session.finished_at = datetime.now(timezone.utc)
-        
+
         db.commit()
         return participant
-        
+
     except Exception as e:
         db.rollback()
         print(f"Error in leave_room CRUD: {e}")
