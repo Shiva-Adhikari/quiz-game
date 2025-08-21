@@ -2,7 +2,7 @@ from fastapi import WebSocket
 from typing import Dict, List, Set
 import json
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class ConnectionManager:
@@ -41,7 +41,7 @@ class ConnectionManager:
             message = {
                 "event": event_type,
                 "data": data,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
             
             # Send to all connections in room
@@ -61,7 +61,7 @@ class ConnectionManager:
             message = {
                 "event": event_type,
                 "data": data,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
             
             for connection in self.active_connections[room_id]:

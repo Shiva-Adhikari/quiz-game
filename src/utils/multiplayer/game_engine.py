@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 import json
 from src.utils.multiplayer.crud import advance_question, finish_game, get_final_leaderboard
@@ -39,7 +39,7 @@ class MultiplayerGameEngine:
             return
         
         question = self.questions[self.current_question_index]
-        self.question_start_time = datetime.utcnow()
+        self.question_start_time = datetime.now(timezone.utc)
         self.players_answered.clear()
         
         question_data = {
@@ -135,7 +135,7 @@ class MultiplayerGameEngine:
         # Send final results
         await manager.send_to_room(self.room_id, "game_finished", {
             "leaderboard": leaderboard,
-            "game_duration": (datetime.utcnow() - self.question_start_time).total_seconds() if self.question_start_time else 0
+            "game_duration": (datetime.now(timezone.utc) - self.question_start_time).total_seconds() if self.question_start_time else 0
         })
         
         # Clean up

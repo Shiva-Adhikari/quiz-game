@@ -12,7 +12,7 @@ from src.schemas.badges import (
     UserBadgeResponse,
     BadgeResponse
 )
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -306,7 +306,7 @@ class BadgeService:
             user_id=user_id,
             badge_id=badge_id,
             progress_value=progress_value,
-            earned_at=datetime.utcnow(),
+            earned_at=datetime.now(timezone.utc),
             notification_sent=False
         )
         
@@ -516,7 +516,7 @@ class BadgeService:
             user_id=user_id,
             badge_id=badge_id,
             progress_value=progress_value,
-            earned_at=datetime.utcnow(),
+            earned_at=datetime.now(timezone.utc),
             notification_sent=False
         )
         

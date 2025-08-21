@@ -5,7 +5,7 @@ from src.models.user_profile import UserProfile
 from src.models.level_system import LevelSystem
 from src.schemas.user_profile import UserProfileUpdate
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def create_user_profile(db: Session, user_id: int, display_name: str) -> UserProfile:
@@ -54,7 +54,7 @@ def update_user_profile(db: Session, user_id: int, profile_update: UserProfileUp
         # Update profile
         update_data = profile_update.model_dump(exclude_unset=True)
         if update_data:
-            update_data['updated_at'] = datetime.utcnow()
+            update_data['updated_at'] = datetime.now(timezone.utc)
             stmt = update(UserProfile).where(UserProfile.user_id == user_id).values(**update_data)
             result = db.execute(stmt)
             if result.rowcount == 0:
@@ -88,7 +88,7 @@ def update_profile_stats(db: Session, user_id: int, xp_gained: int, coins_gained
             current_level=new_level,
             coins=new_coins,
             total_games_played=new_games,
-            updated_at=datetime.utcnow()
+            updated_at=datetime.now(timezone.utc)
         )
         db.execute(stmt)
         db.commit()

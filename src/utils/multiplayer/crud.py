@@ -7,7 +7,7 @@ from src.schemas.multiplayer import RoomCreate, SubmitAnswerRequest
 from src.utils.multiplayer.utils import generate_room_code, calculate_quiz_score
 from typing import Optional, List
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def create_room(db: Session, room_data: RoomCreate, user_id: int):
@@ -310,7 +310,7 @@ def finish_game(db: Session, room_id: int):
     
     if game_session:
         game_session.status = "finished"
-        game_session.finished_at = datetime.utcnow()
+        game_session.finished_at = datetime.now(timezone.utc)
     
     db.commit()
     
@@ -359,7 +359,7 @@ def leave_room(db: Session, room_id: int, user_id: int):
         
         # Mark as inactive
         participant.is_active = False
-        participant.left_at = datetime.utcnow()
+        participant.left_at = datetime.now(timezone.utc)
         was_host = participant.is_host
         
         # Update room player count
@@ -395,7 +395,7 @@ def leave_room(db: Session, room_id: int, user_id: int):
                 
                 if active_session:
                     active_session.status = "finished"
-                    active_session.finished_at = datetime.utcnow()
+                    active_session.finished_at = datetime.now(timezone.utc)
         
         db.commit()
         return participant

@@ -13,7 +13,7 @@ import src.utils.multiplayer.crud as crud
 from src.utils.multiplayer.websocket_manager import manager
 from src.utils.multiplayer.game_engine import MultiplayerGameEngine
 from typing import Dict
-from datetime import datetime
+from datetime import datetime, timezone
 from src.utils.db import get_db
 from src.utils.get_current_user import get_current_user
 from src.models.questions import Question
@@ -330,7 +330,7 @@ async def websocket_endpoint(
                     await manager.send_to_room(room_id, "chat_message", {
                         "user_id": user_id,
                         "message": message.get("message", ""),
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     })
                     
             except WebSocketDisconnect:

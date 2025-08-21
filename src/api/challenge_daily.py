@@ -1,7 +1,7 @@
 # Standard library imports
 import random
 import hashlib
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 # Third-party imports
 from sqlalchemy import func
@@ -150,7 +150,7 @@ def get_or_create_user_attempt(db: Session, user_id: int, daily_challenge_id: in
             user_id=user_id,
             daily_challenge_id=daily_challenge_id,
             status=ChallengeStatus.NOT_STARTED,
-            started_at=datetime.utcnow()
+            started_at=datetime.now(timezone.utc)
         )
         db.add(attempt)
         db.flush()
@@ -292,7 +292,7 @@ def speed_challenge_mode(db: Session, current_user: User):
     # Calculate time remaining if already started
     time_remaining = 120  # 2 minutes default
     if session_data['user_attempt'].started_at:
-        time_elapsed = (datetime.utcnow() - session_data['user_attempt'].started_at).total_seconds()
+        time_elapsed = (datetime.now(timezone.utc) - session_data['user_attempt'].started_at).total_seconds()
         time_remaining = max(0, 120 - time_elapsed)
 
     return {
@@ -340,7 +340,7 @@ def lightning_round_mode(db: Session, current_user: User):
     # Calculate time remaining if already started
     time_remaining = 60  # 1 minute default
     if session_data['user_attempt'].started_at:
-        time_elapsed = (datetime.utcnow() - session_data['user_attempt'].started_at).total_seconds()
+        time_elapsed = (datetime.now(timezone.utc) - session_data['user_attempt'].started_at).total_seconds()
         time_remaining = max(0, 60 - time_elapsed)
 
     return {
@@ -482,7 +482,7 @@ def create_challenge_session(db: Session, user_id: int, challenge_type: str):
 
     # Set started_at if not already set
     if not user_attempt.started_at:
-        user_attempt.started_at = datetime.utcnow()
+        user_attempt.started_at = datetime.now(timezone.utc)
         db.commit()
 
     return {
@@ -507,7 +507,7 @@ def handle_survival_mode_answer(db: Session, attempt: UserChallengeAttempt, ques
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
         attempt.is_successful = False
-        attempt.completed_at = datetime.utcnow()
+        attempt.completed_at = datetime.now(timezone.utc)
         attempt.final_score = attempt.correct_answers
 
         db.commit()
@@ -572,7 +572,7 @@ def handle_perfect_score_answer_(db: Session, attempt: UserChallengeAttempt, que
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
         attempt.is_successful = False
-        attempt.completed_at = datetime.utcnow()
+        attempt.completed_at = datetime.now(timezone.utc)
         attempt.final_score = attempt.correct_answers
 
         db.commit()
@@ -592,7 +592,7 @@ def handle_perfect_score_answer_(db: Session, attempt: UserChallengeAttempt, que
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
         attempt.is_successful = True
-        attempt.completed_at = datetime.utcnow()
+        attempt.completed_at = datetime.now(timezone.utc)
         attempt.final_score = attempt.correct_answers * 20  # Bonus points for perfect score
 
         db.commit()
@@ -631,7 +631,7 @@ def handle_marathon_mode_answer(db: Session, attempt: UserChallengeAttempt, ques
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
         attempt.is_successful = True
-        attempt.completed_at = datetime.utcnow()
+        attempt.completed_at = datetime.now(timezone.utc)
         attempt.final_score = attempt.correct_answers * 10
 
         db.commit()
@@ -665,14 +665,14 @@ def handle_speed_challenge_answer(db: Session, attempt: UserChallengeAttempt, qu
     """Handle speed challenge logic - 10 questions in 2 minutes"""
 
     # Check time limit (2 minutes = 120 seconds)
-    time_elapsed = (datetime.utcnow() - attempt.started_at).total_seconds()
+    time_elapsed = (datetime.now(timezone.utc) - attempt.started_at).total_seconds()
 
     if time_elapsed > 120:
         # Time's up!
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
         attempt.is_successful = False
-        attempt.completed_at = datetime.utcnow()
+        attempt.completed_at = datetime.now(timezone.utc)
         attempt.time_taken = time_elapsed
         attempt.final_score = attempt.correct_answers
 
@@ -694,7 +694,7 @@ def handle_speed_challenge_answer(db: Session, attempt: UserChallengeAttempt, qu
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
         attempt.is_successful = True
-        attempt.completed_at = datetime.utcnow()
+        attempt.completed_at = datetime.now(timezone.utc)
         attempt.time_taken = time_elapsed
         attempt.final_score = attempt.correct_answers * 15  # Speed bonus
 
@@ -730,14 +730,14 @@ def handle_speed_challenge_answer(db: Session, attempt: UserChallengeAttempt, qu
 def handle_lightning_round_answer(db: Session, attempt: UserChallengeAttempt, question: Question, is_correct: bool):
     """Handle lightning round logic - as many questions as possible in 60 seconds"""
 
-    time_elapsed = (datetime.utcnow() - attempt.started_at).total_seconds()
+    time_elapsed = (datetime.now(timezone.utc) - attempt.started_at).total_seconds()
 
     if time_elapsed > 60:
         # Time's up!
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
         attempt.is_successful = True  # Always successful if you tried
-        attempt.completed_at = datetime.utcnow()
+        attempt.completed_at = datetime.now(timezone.utc)
         attempt.time_taken = time_elapsed
         attempt.final_score = attempt.correct_answers * 5
 
@@ -777,7 +777,7 @@ def handle_streak_target_answer(db: Session, attempt: UserChallengeAttempt, ques
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
         attempt.is_successful = True
-        attempt.completed_at = datetime.utcnow()
+        attempt.completed_at = datetime.now(timezone.utc)
         attempt.final_score = attempt.current_streak * 25
 
         db.commit()
@@ -797,7 +797,7 @@ def handle_streak_target_answer(db: Session, attempt: UserChallengeAttempt, ques
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
         attempt.is_successful = False
-        attempt.completed_at = datetime.utcnow()
+        attempt.completed_at = datetime.now(timezone.utc)
         attempt.final_score = attempt.max_streak * 10
 
         db.commit()
@@ -869,7 +869,7 @@ def handle_perfect_score_answer(db: Session, attempt: UserChallengeAttempt, ques
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
         attempt.is_successful = False
-        attempt.completed_at = datetime.utcnow()
+        attempt.completed_at = datetime.now(timezone.utc)
         attempt.final_score = attempt.correct_answers
 
         db.commit()
@@ -889,7 +889,7 @@ def handle_perfect_score_answer(db: Session, attempt: UserChallengeAttempt, ques
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
         attempt.is_successful = True
-        attempt.completed_at = datetime.utcnow()
+        attempt.completed_at = datetime.now(timezone.utc)
         attempt.final_score = attempt.correct_answers * 20  # Perfect score bonus
 
         db.commit()
@@ -1008,7 +1008,7 @@ def daily_challenge_answer(request: AnswerSubmissionRequest, db: Session = Depen
     if attempt.questions_answered > 0:
         attempt.accuracy_percentage = (attempt.correct_answers / attempt.questions_answered) * 100
 
-    attempt.updated_at = datetime.utcnow()
+    attempt.updated_at = datetime.now(timezone.utc)
 
     # 4. Get challenge type and route to specific logic
     challenge_type = attempt.daily_challenge.challenge_type

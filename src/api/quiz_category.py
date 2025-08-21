@@ -100,7 +100,7 @@ def start_category_quiz(request: StartCategoryQuizRequest, db: Session = Depends
     # Calculate timer expiry if time limit is set
     timer_expires_at = None
     if request.time_limit_minutes:
-        timer_expires_at = datetime.utcnow() + timedelta(minutes=request.time_limit_minutes)
+        timer_expires_at = datetime.now(timezone.utc) + timedelta(minutes=request.time_limit_minutes)
 
     # Create quiz session
     quiz_session = QuizSession(
@@ -114,8 +114,8 @@ def start_category_quiz(request: StartCategoryQuizRequest, db: Session = Depends
         correct_answers=0,
         status=SessionStatus.STARTED,
         is_active=True,
-        started_at=datetime.utcnow(),
-        last_activity_at=datetime.utcnow(),
+        started_at=datetime.now(timezone.utc),
+        last_activity_at=datetime.now(timezone.utc),
         timer_expires_at=timer_expires_at,
         total_time_seconds=0,
         xp_earned=0,
@@ -181,7 +181,7 @@ def submit_category_quiz_answer(request: SubmitAnswerRequest, db: Session = Depe
         raise HTTPException(status_code=404, detail='Quiz session not found or not active')
 
     # Check if session is expired
-    if quiz_session.timer_expires_at and datetime.utcnow() > quiz_session.timer_expires_at:
+    if quiz_session.timer_expires_at and datetime.now(timezone.utc) > quiz_session.timer_expires_at:
         quiz_session.status = SessionStatus.EXPIRED
         quiz_session.is_active = False
         db.commit()
@@ -229,13 +229,13 @@ def submit_category_quiz_answer(request: SubmitAnswerRequest, db: Session = Depe
         user_answer=user_answer,
         is_correct=is_correct,
         time_taken_seconds=time_taken,
-        answered_at=datetime.utcnow()
+        answered_at=datetime.now(timezone.utc)
     )
     db.add(user_answer_record)
 
     # Update session progress
     quiz_session.questions_answered += 1
-    quiz_session.last_activity_at = datetime.utcnow()
+    quiz_session.last_activity_at = datetime.now(timezone.utc)
 
     if is_correct:
         quiz_session.correct_answers += 1
@@ -250,7 +250,7 @@ def submit_category_quiz_answer(request: SubmitAnswerRequest, db: Session = Depe
     if session_completed:
         quiz_session.status = SessionStatus.COMPLETED
         quiz_session.is_active = False
-        quiz_session.completed_at = datetime.utcnow()
+        quiz_session.completed_at = datetime.now(timezone.utc)
 
         # ''' FIX IT later, make it more simplified
         # Calculate total time
@@ -324,7 +324,7 @@ def get_category_quiz_progress(quiz_session_id: int, db: Session = Depends(get_d
     # Calculate time remaining
     time_remaining_seconds = None
     if quiz_session.timer_expires_at:
-        remaining = quiz_session.timer_expires_at - datetime.utcnow()
+        remaining = quiz_session.timer_expires_at - datetime.now(timezone.utc)
         time_remaining_seconds = max(0, int(remaining.total_seconds()))
 
     score_percentage = 0
@@ -424,7 +424,7 @@ def abandon_category_quiz(
 
     quiz_session.status = SessionStatus.ABANDONED
     quiz_session.is_active = False
-    quiz_session.completed_at = datetime.utcnow()
+    quiz_session.completed_at = datetime.now(timezone.utc)
 
     db.commit()
 

@@ -176,8 +176,8 @@ def login(
         user_id=user_table.id,
         session_token=session_id,
         is_active=True,
-        created_at=datetime.utcnow(),
-        expires_at=datetime.utcnow() + timedelta(hours=24)
+        created_at=datetime.now(timezone.utc),
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
     )
 
     user_table.is_active = True
