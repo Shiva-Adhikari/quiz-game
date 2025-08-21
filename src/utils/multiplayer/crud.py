@@ -1,7 +1,5 @@
-# === CRUD OPERATIONS ===
-# crud.py
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func
+from sqlalchemy import and_,
 from src.models.multiplayer import MultiplayerRoom, RoomParticipant, GameSession, PlayerAnswer
 from src.schemas.multiplayer import RoomCreate, SubmitAnswerRequest
 from src.utils.multiplayer.utils import generate_room_code, calculate_quiz_score

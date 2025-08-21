@@ -7,13 +7,13 @@ from sqlalchemy import select
 
 def initialize_level_system(db: Session):
     """Initialize the level system with default levels"""
-    
+
     # Check if levels already exist
     existing_levels = db.scalars(select(LevelSystem)).first()
     if existing_levels:
         print("Level system already initialized")
         return
-    
+
     # Define default levels
     default_levels = [
         {"level": 1, "level_name": "Beginner", "min_xp_required": 0, "max_xp_required": 99, "description": "Starting your quiz journey"},
@@ -32,15 +32,15 @@ def initialize_level_system(db: Session):
         {"level": 14, "level_name": "Transcendent", "min_xp_required": 15000, "max_xp_required": 24999, "description": "Transcending limits"},
         {"level": 15, "level_name": "Omniscient", "min_xp_required": 25000, "max_xp_required": 999999999, "description": "All-knowing quiz master"}
     ]
-    
+
     # Create levels
     try:
         for level_data in default_levels:
             level_create = LevelSystemCreate(**level_data)
             create_level(db, level_create)
-        
+
         print(f"Successfully initialized {len(default_levels)} levels")
-        
+
     except Exception as e:
         print(f"Error initializing level system: {e}")
         db.rollback()

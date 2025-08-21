@@ -8,7 +8,7 @@ from src.models.level_system import LevelSystem
 
 class UserProfile(Base):
     __tablename__ = "user_profiles"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), unique=True, index=True)
     display_name: Mapped[str] = mapped_column(String(30), index=True)
@@ -18,7 +18,7 @@ class UserProfile(Base):
     total_games_played: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="profile")
     level_info: Mapped["LevelSystem"] = relationship(

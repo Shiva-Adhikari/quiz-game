@@ -9,6 +9,7 @@ from src.utils.db import get_db
 
 router = APIRouter(prefix="/levels", tags=["level_system"])
 
+
 @router.get("/", response_model=List[LevelSystemResponse])
 def get_all_levels(
     skip: int = Query(0, ge=0),
@@ -19,6 +20,7 @@ def get_all_levels(
     levels = crud_level.get_levels_paginated(db, skip=skip, limit=limit)
     return levels
 
+
 @router.get("/{level_number}", response_model=LevelSystemResponse)
 def get_level(level_number: int, db: Session = Depends(get_db)):
     """Get specific level by number"""
@@ -27,15 +29,16 @@ def get_level(level_number: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Level number must be positive"
         )
-    
+
     level = crud_level.get_level_by_number(db, level_number)
     if not level:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Level not found"
         )
-    
+
     return level
+
 
 @router.get("/xp/{xp_amount}", response_model=LevelSystemResponse)
 def get_level_by_xp(xp_amount: int, db: Session = Depends(get_db)):
@@ -45,15 +48,16 @@ def get_level_by_xp(xp_amount: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="XP amount cannot be negative"
         )
-    
+
     level = crud_level.get_level_by_xp(db, xp_amount)
     if not level:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No level found for this XP amount"
         )
-    
+
     return level
+
 
 # Admin routes (if you have admin functionality)
 @router.post("/", response_model=LevelSystemResponse)
@@ -71,15 +75,16 @@ def create_level(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Level already exists"
             )
-        
+
         level = crud_level.create_level(db, level_data)
         return level
-        
-    except Exception as e:
+
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create level"
         )
+
 
 @router.put("/{level_number}", response_model=LevelSystemResponse)
 def update_level(
@@ -95,8 +100,9 @@ def update_level(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Level not found"
         )
-    
+
     return level
+
 
 @router.delete("/{level_number}")
 def delete_level(
@@ -111,5 +117,5 @@ def delete_level(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Level not found"
         )
-    
+
     return {"message": "Level deleted successfully"}

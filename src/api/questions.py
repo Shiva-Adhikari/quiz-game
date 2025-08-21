@@ -1,6 +1,5 @@
 # Standard library imports
 from typing import List
-# from datetime import datetime, timedelta, timezone
 
 # Third-party imports
 # from sqlalchemy import func

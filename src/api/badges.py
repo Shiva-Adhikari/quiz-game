@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-# from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from typing import List
 from src.services.badges import BadgeService
@@ -19,6 +18,7 @@ router = APIRouter(prefix="/badges", tags=["badges"])
 def get_badge_service(db: Session = Depends(get_db)) -> BadgeService:
     return BadgeService(db)
 
+
 @router.post("/create-badge", response_model=BadgeResponse, status_code=status.HTTP_201_CREATED)
 def create_badge(
     badge_data: BadgeCreate,
@@ -28,12 +28,13 @@ def create_badge(
     try:
         badge = badge_service.create_badge(badge_data)
         return badge
-    except Exception as e:
+    except Exception:
         # logger.error(f"Error creating badge: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create badge"
         )
+
 
 @router.post("/create-badges/bulk", response_model=List[BadgeResponse], status_code=status.HTTP_201_CREATED)
 def create_multiple_badges(
@@ -44,12 +45,13 @@ def create_multiple_badges(
     try:
         badges = badge_service.create_multiple_badges(badges_data)
         return badges
-    except Exception as e:
+    except Exception:
         # logger.error(f"Error creating badges: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create badges"
         )
+
 
 @router.get("/get_all_badges", response_model=List[BadgeResponse])
 def get_all_badges(
@@ -58,6 +60,7 @@ def get_all_badges(
     """Get all available badges"""
     badges = badge_service.get_all_badges()
     return badges
+
 
 @router.get("/{badge_id}", response_model=BadgeResponse)
 def get_badge(
@@ -73,6 +76,7 @@ def get_badge(
         )
     return badge
 
+
 @router.get("/user/{user_id}", response_model=UserBadgesSummaryResponse)
 def get_user_badges_summary(
     user_id: int,
@@ -82,6 +86,7 @@ def get_user_badges_summary(
     summary = badge_service.get_user_badges_summary(user_id)
     return summary
 
+
 @router.get("/user/{user_id}/earned", response_model=List[UserBadgeResponse])
 def get_user_earned_badges(
     user_id: int,
@@ -90,6 +95,7 @@ def get_user_earned_badges(
     """Get only badges earned by user"""
     earned_badges = badge_service.get_user_badges(user_id)
     return earned_badges
+
 
 @router.get("/user/{user_id}/progress/{badge_id}", response_model=BadgeProgressResponse)
 def get_badge_progress(
@@ -107,6 +113,7 @@ def get_badge_progress(
             detail=str(e)
         )
 
+
 @router.post("/user/{user_id}/check")
 def check_and_award_badges(
     user_id: int,
@@ -114,7 +121,7 @@ def check_and_award_badges(
 ):
     """Check and award eligible badges for user"""
     newly_awarded = badge_service.check_and_award_badges(user_id)
-    
+
     return {
         "message": f"Checked badges for user {user_id}",
         "badges_awarded": len(newly_awarded),
@@ -129,6 +136,7 @@ def check_and_award_badges(
         ]
     }
 
+
 @router.get("/user/{user_id}/notifications", response_model=List[BadgeNotificationResponse])
 def get_badge_notifications(
     user_id: int,
@@ -136,7 +144,7 @@ def get_badge_notifications(
 ):
     """Get unnotified badges for user"""
     unnotified_badges = badge_service.get_unnotified_badges(user_id)
-    
+
     notifications = []
     for user_badge in unnotified_badges:
         notifications.append(BadgeNotificationResponse(
@@ -146,10 +154,10 @@ def get_badge_notifications(
             coins_reward=user_badge.badge.coins_reward,
             message=f"Congratulations! You've earned the '{user_badge.badge.name}' badge!"
         ))
-    
+
     # Mark as notified
     if unnotified_badges:
         badge_ids = [badge.id for badge in unnotified_badges]
         badge_service.mark_badges_notified(badge_ids)
-    
+
     return notifications

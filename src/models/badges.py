@@ -7,7 +7,7 @@ from typing import Optional, List
 
 class Badge(Base):
     __tablename__ = "badges"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
@@ -19,14 +19,14 @@ class Badge(Base):
     coins_reward: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    
+
     # Relationships
     user_badges: Mapped[List["UserBadge"]] = relationship("UserBadge", back_populates="badge")
 
 
 class UserBadge(Base):
     __tablename__ = "user_badges"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     badge_id: Mapped[int] = mapped_column(Integer, ForeignKey("badges.id"), nullable=False)
@@ -34,6 +34,6 @@ class UserBadge(Base):
     progress_value: Mapped[int] = mapped_column(Integer, default=0)
     is_claimed: Mapped[bool] = mapped_column(Boolean, default=True)
     notification_sent: Mapped[bool] = mapped_column(Boolean, default=False)
-    
+
     # Relationships
     badge: Mapped["Badge"] = relationship("Badge", back_populates="user_badges")
