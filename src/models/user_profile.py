@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import Integer, String, DateTime, ForeignKey
+from sqlalchemy import Integer, String, DateTime, ForeignKey, func
 from datetime import datetime
 from src.core.database import Base
 from src.models.authentication import User
@@ -16,8 +16,8 @@ class UserProfile(Base):
     current_level: Mapped[int] = mapped_column(Integer, default=1)
     coins: Mapped[int] = mapped_column(Integer, default=0)
     total_games_played: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="profile")

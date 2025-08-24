@@ -1,4 +1,4 @@
-from sqlalchemy import String, Boolean, DateTime, Date, Float, Text, ForeignKey, Enum, Integer
+from sqlalchemy import String, Boolean, DateTime, Date, Float, Text, ForeignKey, Enum, Integer, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime, date
 from typing import List, Optional
@@ -14,7 +14,7 @@ class DailyChallenge(Base):
     challenge_date: Mapped[date] = mapped_column(Date, unique=True, index=True)
     challenge_type: Mapped[str] = mapped_column(String(50))  # survival_mode, perfect_score, etc.
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Override by admin
     # is_override: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -51,10 +51,10 @@ class UserChallengeAttempt(Base):
     accuracy_percentage: Mapped[float] = mapped_column(Float, default=0.0)
 
     # Timestamps
-    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
     daily_challenge: Mapped["DailyChallenge"] = relationship(back_populates="attempts")
@@ -94,8 +94,8 @@ class UserChallengeStat(Base):
 
     # Timestamps
     last_played_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 # 4. QUESTIONS - Your existing questions table (example structure)
@@ -145,7 +145,7 @@ class ChallengeType(Base):
     selection_weight: Mapped[int] = mapped_column(Integer, default=10)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 # 6. CHALLENGE_LEADERBOARDS - Daily/weekly rankings (Optional)
@@ -166,7 +166,7 @@ class ChallengeLeaderboard(Base):
     week_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # For weekly leaderboards
     month_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # For monthly leaderboards
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 # 7. USER_ACHIEVEMENTS - Badges and milestones (Optional)
@@ -188,7 +188,7 @@ class UserAchievement(Base):
     earned_date: Mapped[date] = mapped_column(Date)
     challenge_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # Which challenge earned this
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 # 8. CHALLENGE_SESSIONS - Detailed session data for analytics (Optional)
@@ -199,8 +199,8 @@ class ChallengeSession(Base):
     user_challenge_attempt_id: Mapped[int] = mapped_column(ForeignKey('user_challenge_attempts.id'))
 
     # Session tracking
-    session_start: Mapped[datetime] = mapped_column(DateTime)
-    session_end: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    session_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    session_end: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     questions_in_session: Mapped[int] = mapped_column(Integer, default=0)
 
     # Analytics data
@@ -208,7 +208,7 @@ class ChallengeSession(Base):
     device_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # mobile, desktop, tablet
     ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 # Example of how to create all tables

@@ -1,6 +1,6 @@
-from sqlalchemy import Integer, String, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Integer, String, Boolean, DateTime, ForeignKey, Text, func
 from sqlalchemy.orm import relationship, Mapped, mapped_column
-from datetime import datetime
+from datetime import datetime, timezone
 from src.core.database import Base  # Your existing base
 from typing import Optional, List
 
@@ -18,7 +18,7 @@ class Badge(Base):
     xp_reward: Mapped[int] = mapped_column(Integer, default=0)
     coins_reward: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     user_badges: Mapped[List["UserBadge"]] = relationship("UserBadge", back_populates="badge")
@@ -30,7 +30,7 @@ class UserBadge(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     badge_id: Mapped[int] = mapped_column(Integer, ForeignKey("badges.id"), nullable=False)
-    earned_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    earned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     progress_value: Mapped[int] = mapped_column(Integer, default=0)
     is_claimed: Mapped[bool] = mapped_column(Boolean, default=True)
     notification_sent: Mapped[bool] = mapped_column(Boolean, default=False)

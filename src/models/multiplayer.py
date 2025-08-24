@@ -23,8 +23,8 @@ class MultiplayerRoom(Base):
     is_public: Mapped[bool] = mapped_column(Boolean, default=True)
     room_password: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="waiting")  # waiting, in_progress, finished
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Relationships
     participants: Mapped[List["RoomParticipant"]] = relationship("RoomParticipant", back_populates="room")
@@ -39,8 +39,8 @@ class RoomParticipant(Base):
     user_id: Mapped[int] = mapped_column(Integer)  # ForeignKey to User
     is_ready: Mapped[bool] = mapped_column(Boolean, default=False)
     is_host: Mapped[bool] = mapped_column(Boolean, default=False)
-    joined_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    left_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    left_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     
     # Game stats
@@ -60,8 +60,8 @@ class GameSession(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     room_id: Mapped[int] = mapped_column(ForeignKey("multiplayer_rooms.id"))
     current_question_index: Mapped[int] = mapped_column(Integer, default=0)
-    started_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active")  # active, finished
     
     # Question management
@@ -83,7 +83,7 @@ class PlayerAnswer(Base):
     is_correct: Mapped[bool] = mapped_column(Boolean, default=False)
     time_taken: Mapped[float] = mapped_column(Float)  # seconds
     score_earned: Mapped[int] = mapped_column(Integer, default=0)
-    answered_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    answered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
     game_session: Mapped["GameSession"] = relationship("GameSession", back_populates="answers")

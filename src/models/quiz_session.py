@@ -139,7 +139,7 @@ class QuizSessionQuestion(Base):
     is_answered: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Timing
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     quiz_session: Mapped['QuizSession'] = relationship("QuizSession")
@@ -173,7 +173,7 @@ class UserAnswer(Base):
 
     # Timing
     time_taken_seconds: Mapped[int] = mapped_column(Integer, default=0)
-    answered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+    answered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     '''
     # Relationships
