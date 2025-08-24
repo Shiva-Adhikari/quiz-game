@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 # Third-party imports
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from fastapi import (
     APIRouter, Depends, HTTPException, Response,
@@ -159,7 +160,10 @@ def login(
         db: Session = Depends(get_db)) -> LoginResponse:
 
     user_table = db.query(User).filter(
-        User.username == user_credentials.username
+        or_(
+            User.username == user_credentials.username,
+            User.email == user_credentials.username
+        )
     ).filter(User.is_verified).first()
 
     if not user_table:

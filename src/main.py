@@ -1,5 +1,8 @@
 # Third-party imports
+import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 # Local imports
 from src.core.config import settings
@@ -23,10 +26,22 @@ app = FastAPI(
     version='0.0.1'
 )
 
+# Add CORS middleware to allow cross-origin requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, specify actual origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get('/')
 def root():
     return {'message': 'Successfully running...', 'status': 'good'}
+
+@app.get("/favicon.ico")
+async def favicon():
+    return FileResponse("path/to/favicon.ico")
 
 
 # Include routers
@@ -42,7 +57,6 @@ app.include_router(badges_router, prefix='/api/v1')
 
 
 if __name__ == '__main__':
-    import uvicorn
     uvicorn.run(
         app, host=settings.HOST.get_secret_value(), port=settings.PORT,
         reload=True
