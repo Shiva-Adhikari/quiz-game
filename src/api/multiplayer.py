@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from src.utils.db import get_db
 from src.utils.get_current_user import get_current_user
 from src.models.questions import Question
+from src.models.authentication import User
 
 
 router = APIRouter(prefix="/multiplayer", tags=["multiplayer"])
@@ -167,7 +168,8 @@ async def start_game(
 
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
+        print(f'Failed to start game as : {e}')
         raise HTTPException(status_code=500, detail="Failed to start game")
 
 
@@ -295,9 +297,11 @@ async def leave_room(  # Make it async
 async def websocket_endpoint(
     websocket: WebSocket,
     room_id: int,
-    user_id: int,  # This would normally come from JWT token in query params
+    current_user: User = Depends(get_current_user),
+    # user_id: int,  # This would normally come from JWT token in query params
     db: Session = Depends(get_db)
 ):
+    user_id = current_user.id
     await manager.connect(websocket, room_id, user_id)
 
     try:
