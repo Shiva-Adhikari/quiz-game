@@ -5,6 +5,7 @@ from src.schemas.level_system import LevelSystemResponse, LevelSystemCreate, Lev
 from src.crud import level_system as crud_level
 # Using your existing dependencies: get_db, get_current_admin_user (if you have admin)
 from src.utils.db import get_db
+from src.models.level_system import LevelSystem
 
 
 router = APIRouter(prefix="/levels", tags=["level_system"])
@@ -59,6 +60,7 @@ def get_level_by_xp(xp_amount: int, db: Session = Depends(get_db)):
     return level
 
 
+'''
 # Admin routes (if you have admin functionality)
 @router.post("/", response_model=LevelSystemResponse)
 def create_level(
@@ -84,6 +86,7 @@ def create_level(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create level"
         )
+'''
 
 
 @router.put("/{level_number}", response_model=LevelSystemResponse)
@@ -119,3 +122,59 @@ def delete_level(
         )
 
     return {"message": "Level deleted successfully"}
+
+
+@router.post("/", response_model=LevelSystemResponse)
+def create_level(level_data: LevelSystemCreate, db: Session = Depends(get_db)):
+    """Create new level (Admin only)"""
+    
+    # Validate level number
+    if level_data.level < 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Level must be positive"
+        )
+    
+    # Validate XP ranges
+    if level_data.min_xp_required < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Minimum XP cannot be negative"
+        )
+    
+    if level_data.max_xp_required <= level_data.min_xp_required:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Maximum XP must be greater than minimum XP"
+        )
+    
+    # Check for existing level
+    existing = crud_level.get_level_by_number(db, level_data.level)
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Level {level_data.level} already exists"
+        )
+    
+    # Check for overlapping XP ranges
+    overlapping = db.query(LevelSystem).filter(
+        ((LevelSystem.min_xp_required <= level_data.min_xp_required) & 
+         (LevelSystem.max_xp_required >= level_data.min_xp_required)) |
+        ((LevelSystem.min_xp_required <= level_data.max_xp_required) & 
+         (LevelSystem.max_xp_required >= level_data.max_xp_required))
+    ).first()
+    
+    if overlapping:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"XP range overlaps with level {overlapping.level}"
+        )
+    
+    try:
+        level = crud_level.create_level(db, level_data)
+        return level
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create level: {str(e)}"
+        )

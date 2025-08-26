@@ -9,8 +9,12 @@ from fastapi import APIRouter, Depends, HTTPException
 # Local imports
 from src.utils.db import get_db
 from src.utils.enums import SessionStatus
-from src.models.questions import Question, Category
 from src.models.authentication import User
+from src.models.user_profile import UserProfile
+from src.models.questions import Question, Category
+from src.utils.quiz import check_and_expire_sessions
+from src.utils.rewards import calculate_quiz_rewards
+from src.utils.level_system import get_level_from_xp
 from src.utils.get_current_user import get_current_user
 from src.models.quiz_session import QuizSession, QuizSessionQuestion, UserAnswer
 from src.schemas.quiz_session import StartCategoryQuizRequest, QuestionResponse, SubmitAnswerRequest, SubmitAnswerResponse, QuizProgressResponse
@@ -52,20 +56,25 @@ def get_available_categories(db: Session = Depends(get_db)):
 def start_category_quiz(request: StartCategoryQuizRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Start a new quiz session with questions from a specific category"""
 
-    '''
-    # Check if user already has an active quiz session
-    active_session = db.query(QuizSession).filter(
-        QuizSession.user_id == current_user.id,
-        QuizSession.is_active,
-        QuizSession.status.in_([SessionStatus.STARTED, SessionStatus.IN_PROGRESS])
-    ).first()
+    # active_session = db.query(QuizSession).filter(
+    #     QuizSession.user_id == current_user.id,
+    #     QuizSession.is_active,
+    #     QuizSession.status.in_([SessionStatus.STARTED, SessionStatus.IN_PROGRESS])
+    # ).first()
 
-    if active_session:
-        raise HTTPException(
-            status_code=400,
-            detail=f'You already have an active quiz session (ID: {active_session.id}). Complete it first.'
-        )
-    '''
+    # if active_session:
+    #     raise HTTPException(
+    #         status_code=400,
+    #         detail={
+    #             "message": "You have an active quiz session",
+    #             "active_session_id": active_session.id,
+    #             "session_type": active_session.session_type,
+    #             "questions_answered": active_session.questions_answered,
+    #             "total_questions": active_session.total_questions
+    #         }
+    #     )
+
+    check_and_expire_sessions(current_user.id, db)
 
     # Validate category exists and is active
     category = db.query(Category).filter(
@@ -76,18 +85,30 @@ def start_category_quiz(request: StartCategoryQuizRequest, db: Session = Depends
     if not category:
         raise HTTPException(status_code=404, detail='Category not found or inactive')
 
-    # Get questions from the specified category
-    query = db.query(Question).filter(
+    filters = [
         Question.category_id == request.category_id,
         Question.is_active
-    )
+    ]
 
-    # Apply difficulty filter if specified
     if hasattr(request, 'difficulty_level') and request.difficulty_level:
-        query = query.filter(Question.difficulty_level == request.difficulty_level)
+        filters.append(Question.difficulty_level == request.difficulty_level)
 
-    # Get random questions from the category
-    category_questions = query.order_by(func.random()).limit(request.total_questions).all()
+    # Count available questions first
+    available_count = db.query(Question).filter(*filters).count()
+
+    if available_count < request.total_questions:
+        # Use all available questions if not enough
+        category_questions = db.query(Question).filter(*filters).all()
+    else:
+        # Use subquery for better performance
+        subquery = db.query(Question.id).filter(*filters).subquery()
+        category_questions = (
+            db.query(Question)
+            .join(subquery, Question.id == subquery.c.id)
+            .order_by(func.random())
+            .limit(request.total_questions)
+            .all()
+        )
 
     '''
     if len(category_questions) < request.total_questions:
@@ -177,6 +198,13 @@ def submit_category_quiz_answer(request: SubmitAnswerRequest, db: Session = Depe
         QuizSession.is_active
     ).first()
 
+    user_profile = db.query(UserProfile).filter(
+        UserProfile.id == current_user.id
+    ).first()
+
+    if not user_profile:
+        raise HTTPException(status_code=404, detail='User Profile not found')
+
     if not quiz_session:
         raise HTTPException(status_code=404, detail='Quiz session not found or not active')
 
@@ -264,18 +292,24 @@ def submit_category_quiz_answer(request: SubmitAnswerRequest, db: Session = Depe
             quiz_session.total_time_seconds = int(total_time.total_seconds())
         # '''
 
-        # Calculate rewards based on category difficulty and performance
-        score_percentage = (quiz_session.correct_answers / quiz_session.total_questions) * 100
+        # Calculate Rewards
+        rewards = calculate_quiz_rewards(
+            correct_answers=quiz_session.correct_answers,
+            total_questions=quiz_session.total_questions,
+            difficulty_level=quiz_session.difficulty_level,
+            session_type="category"
+        )
 
-        # Category-based XP multiplier (you can customize this)
-        category_multiplier = 1.0
-        if quiz_session.difficulty_level == 'hard':
-            category_multiplier = 1.5
-        elif quiz_session.difficulty_level == 'medium':
-            category_multiplier = 1.2
+        quiz_session.xp_earned = rewards["xp_earned"]
+        quiz_session.coins_earned = rewards["coins_earned"]
 
-        quiz_session.xp_earned = int(score_percentage * 2 * category_multiplier)
-        quiz_session.coins_earned = int(quiz_session.correct_answers * 10 * category_multiplier)
+        user_profile.coins += quiz_session.coins_earned
+        user_profile.total_xp += quiz_session.xp_earned
+        user_profile.total_games_played += 1
+
+        # Get proper level from level system
+        level_info = get_level_from_xp(db, user_profile.total_xp)
+        user_profile.current_level = level_info["level"]
     else:
         quiz_session.status = SessionStatus.IN_PROGRESS
         next_question_order = quiz_session.questions_answered + 1

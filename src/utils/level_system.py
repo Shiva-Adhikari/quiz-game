@@ -3,9 +3,11 @@ from src.models.level_system import LevelSystem
 from src.crud.level_system import create_level
 from src.schemas.level_system import LevelSystemCreate
 from sqlalchemy import select
+from fastapi import Depends
+from src.utils.db import get_db
 
 
-def initialize_level_system(db: Session):
+def initialize_level_system(db: Session = Depends(get_db)):
     """Initialize the level system with default levels"""
 
     # Check if levels already exist
@@ -45,3 +47,24 @@ def initialize_level_system(db: Session):
         print(f"Error initializing level system: {e}")
         db.rollback()
         raise
+
+
+def get_level_from_xp(db: Session, total_xp: int) -> dict:
+    """Get user level based on total XP"""
+    level = db.query(LevelSystem).filter(
+        LevelSystem.min_xp_required <= total_xp,
+        LevelSystem.max_xp_required >= total_xp
+    ).first()
+    
+    if not level:
+        # Fallback to highest level if XP exceeds max
+        level = db.query(LevelSystem).order_by(LevelSystem.level.desc()).first()
+    
+    return {
+        "level": level.level,
+        "level_name": level.level_name,
+        "current_xp": total_xp,
+        "min_xp": level.min_xp_required,
+        "max_xp": level.max_xp_required,
+        "xp_to_next_level": max(0, level.max_xp_required - total_xp + 1)
+    }

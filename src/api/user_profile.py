@@ -15,7 +15,7 @@ router = APIRouter(prefix="/profile", tags=["user_profile"])
 def get_my_profile(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get current user's complete profile"""
     profile = crud_profile.get_user_profile(db, current_user.id)
-    print(f'profile: {profile}')
+    # print(f'profile: {profile}')
     if not profile:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

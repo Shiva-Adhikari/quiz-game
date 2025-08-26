@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta, timezone
 
 # Third-party imports
-from sqlalchemy import func
+# from sqlalchemy import func
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -11,6 +11,10 @@ from src.utils.db import get_db
 from src.utils.enums import SessionStatus
 from src.models.questions import Question
 from src.models.authentication import User
+from src.models.user_profile import UserProfile
+from src.utils.quiz import check_and_expire_sessions
+from src.utils.level_system import get_level_from_xp
+from src.utils.rewards import calculate_quiz_rewards
 from src.utils.get_current_user import get_current_user
 from src.models.quiz_session import QuizSession, QuizSessionQuestion, UserAnswer
 from src.schemas.quiz_session import StartQuizRequest, QuestionResponse, SubmitAnswerRequest, SubmitAnswerResponse, QuizProgressResponse
@@ -31,13 +35,22 @@ def random_quiz(request: StartQuizRequest, db: Session = Depends(get_db), curren
     ).first()
 
     if active_session:
-        raise HTTPException(status_code=400, detail=f'You already have an active quiz session (ID: {active_session.id}). Complete it first.')
+        raise HTTPException(
+            status_code=400, 
+            detail={
+                "message": "You have an active quiz session",
+                "active_session_id": active_session.id,
+                "session_type": active_session.session_type,
+                "questions_answered": active_session.questions_answered,
+                "total_questions": active_session.total_questions
+            }
+        )
     '''
 
-    # get random question
-    query = db.query(Question).filter(Question.is_active)
+    check_and_expire_sessions(current_user.id, db)
 
-    random_questions = query.order_by(func.random()).limit(request.total_questions).all()
+    # get random question
+    random_questions = get_random_questions_optimized(db, request.total_questions)
 
     ''' # for increase performance in large dataset this is better way than top 2 variables (query, random_questions)
     # Step 1: Count total questions
@@ -140,6 +153,13 @@ def submit_answer(request: SubmitAnswerRequest, db: Session = Depends(get_db), c
         QuizSession.is_active
     ).first()
 
+    user_profile = db.query(UserProfile).filter(
+        UserProfile.id == current_user.id
+    ).first()
+
+    if not user_profile:
+        raise HTTPException(status_code=404, detail='User Profile not found')
+
     if not quiz_session:
         raise HTTPException(status_code=404, detail='Quiz session not found or not active')
 
@@ -216,9 +236,22 @@ def submit_answer(request: SubmitAnswerRequest, db: Session = Depends(get_db), c
         quiz_session.completed_at = datetime.now(timezone.utc)
 
         # Calculate rewards (XP, coins)
-        score_percentage = (quiz_session.correct_answers / quiz_session.total_questions) * 100
-        quiz_session.xp_earned = int(score_percentage * 2)  # 2 XP per percentage point
-        quiz_session.coins_earned = quiz_session.correct_answers * 10  # 10 coins per correct answer
+        rewards = calculate_quiz_rewards(
+            correct_answers=quiz_session.correct_answers,
+            total_questions=quiz_session.total_questions,
+            difficulty_level="mixed",
+            session_type="random"
+        )
+
+        quiz_session.xp_earned = rewards["xp_earned"]
+        quiz_session.coins_earned = rewards["coins_earned"]
+        
+        user_profile.coins += quiz_session.coins_earned  
+        user_profile.total_xp += quiz_session.xp_earned
+        user_profile.total_games_played += 1
+
+        level_info = get_level_from_xp(db, user_profile.total_xp)
+        user_profile.current_level = level_info["level"]
     else:
         quiz_session.status = SessionStatus.IN_PROGRESS
         # Get next question order
@@ -382,3 +415,28 @@ def get_active_quiz(current_user: User = Depends(get_current_user), db: Session 
             "current_score": active_session.correct_answers
         }
     }
+
+
+def get_random_questions_optimized(db: Session, limit: int):
+    """Optimized random question selection"""
+    # Count total active questions
+    total_count = db.query(Question).filter(Question.is_active).count()
+    
+    if total_count < limit:
+        # Return all available if not enough questions
+        return db.query(Question).filter(Question.is_active).all()
+    
+    # Generate random offsets
+    import random
+    offsets = set()
+    while len(offsets) < limit:
+        offsets.add(random.randint(0, total_count - 1))
+    
+    # Get questions at random positions
+    questions = []
+    for offset in offsets:
+        question = db.query(Question).filter(Question.is_active).offset(offset).first()
+        if question:
+            questions.append(question)
+    
+    return questions

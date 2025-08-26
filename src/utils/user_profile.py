@@ -59,7 +59,7 @@ def validate_display_name(display_name: str) -> bool:
 def format_profile_response(profile: UserProfile, db: Session = Depends(get_db)) -> UserProfile:
     """Add calculated fields to profile response"""
     if profile.level_info:
-        progress_info = calculate_level_progress(db, profile.total_xp, profile.current_level)
+        progress_info = calculate_level_progress(profile.total_xp, profile.current_level, db)
         profile.level_info.xp_progress = progress_info["xp_progress"]
         profile.level_info.xp_needed_for_next = progress_info["xp_needed_for_next"]
 
