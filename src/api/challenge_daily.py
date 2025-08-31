@@ -101,8 +101,8 @@ def get_challenge_info(challenge_type: str) -> dict:
 def get_daily_schedule():
     """Get today schedule date"""
     today = date.today()
-    # challenge = get_today_challenge_type()
-    challenge = 'survival_mode'
+    challenge = get_today_challenge_type()
+    # challenge = 'survival_mode'
     return {today.strftime("%Y-%m-%d"): challenge}
 
 
@@ -951,8 +951,8 @@ def daily_challenge(db: Session = Depends(get_db), current_user: User = Depends(
     """Start today daily challenge"""
 
     # Get today challenge
-    # todays_challenge = get_today_challenge_type()
-    todays_challenge = 'survival_mode'
+    todays_challenge = get_today_challenge_type()
+    # todays_challenge = 'survival_mode'
     print(f'\n\ntodays_challenge: {todays_challenge}')
 
     # Get challenge details

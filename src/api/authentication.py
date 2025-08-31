@@ -12,7 +12,7 @@ from fastapi import (
 
 # Local imports
 from src.utils.db import get_db
-# from src.utils import send_email
+# from src.utils.email_send import send_email
 from src.utils.generate_otp import generate_otp
 from src.utils.hash_password import hash_password, verify_password
 from src.models.authentication import (
