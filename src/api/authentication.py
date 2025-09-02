@@ -1,13 +1,15 @@
 # Standard library imports
 import uuid
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 # Third-party imports
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import (
     APIRouter, Depends, HTTPException, Response,
-    Request
+    Request, Header, Cookie
 )
 
 # Local imports
@@ -20,9 +22,11 @@ from src.models.authentication import (
     UserSession
 )
 from src.schemas.authentication import LoginResponse, UserResponse, UserRegister, UserLogin
+from src.utils.get_current_user import get_current_user
 
 
 router = APIRouter(prefix='/authentication', tags=['Authentication'])
+security = HTTPBearer(auto_error=False)
 
 
 @router.post('/register', response_model=UserResponse)
@@ -157,6 +161,7 @@ def verify_email(email: str, otp: int, db: Session = Depends(get_db)) -> dict:
 def login(
         user_credentials: UserLogin,
         response: Response,
+        user_agent: Optional[str] = Header(None),
         db: Session = Depends(get_db)) -> LoginResponse:
 
     user_table = db.query(User).filter(
@@ -176,73 +181,161 @@ def login(
         raise HTTPException(status_code=401, detail='Password not match')
 
     session_id = str(uuid.uuid4())
+
+    # Detect if mobile app (you can customize this detection)
+    is_mobile_app = user_agent and ('okhttp' in user_agent.lower() or 'android' in user_agent.lower() or 'ios' in user_agent.lower())
+    print(f'type fo is_mobile: {type(is_mobile_app)} and value: {is_mobile_app}')
+
     new_session = UserSession(
         user_id=user_table.id,
         session_token=session_id,
         is_active=True,
+        is_mobile=is_mobile_app,
         created_at=datetime.now(timezone.utc),
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7)   # longer session for 7 days
     )
 
     user_table.is_active = True
     db.add(new_session)
     db.commit()
 
-    # response
-    response.set_cookie(key='session_id', value=session_id, httponly=True)
+    # '''
+    # Set cookie for web browsers (not mobile apps)
+    if not is_mobile_app:
+        response.set_cookie(
+            key='session_id',
+            value=session_id,
+            httponly=True,
+            secure=True,  # HTTPS only
+            samesite='lax',
+            max_age=7 * 24 * 60 * 60  # 7 days
+        )
+    # '''
 
-    # Add password verification logic here
-    return LoginResponse(
-        message='Login Sucessful',
+    # response
+    # response.set_cookie(key='session_id', value=session_id, httponly=True)
+
+    # Response
+    login_response = LoginResponse(
+        message='Login Successful',
         user=UserResponse.from_orm(user_table)
     )
 
+    # Mobile apps lai token return garcha
+    if is_mobile_app:
+        login_response.token = session_id  # Add token field to LoginResponse schema
+
+    return login_response
+
 
 @router.post('/logout')
-def logout(request: Request, response: Response, db: Session = Depends(get_db)):
-    session_id = request.cookies.get('session_id')
+def logout(
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    session_id: Optional[str] = Cookie(None, alias="session_id"),  # Use Cookie here
+    db: Session = Depends(get_db)
+):
 
-    response.delete_cookie('session_id')
-    if not session_id:
-        raise HTTPException(status_code=404, detail='No active session')
+    # Get session token
+    session_token = None
+    if credentials:
+        session_token = credentials.credentials
+    elif session_id:
+        session_token = session_id
 
-    session = db.query(UserSession).filter(UserSession.session_token == session_id).first()
-    if not session:
-        raise HTTPException(status_code=401, detail='Invalid session')
+    if session_token:
+        # Deactivate session
+        session = db.query(UserSession).filter(
+            UserSession.session_token == session_token
+        ).first()
+        if session:
+            session.is_active = False
+            db.commit()
 
-    try:
-        username = session.user.username
-    except AttributeError:
-        username = 'Unknown user'
+    # Clear cookie
+    response.delete_cookie(key='session_id')
 
-    db.delete(session)
-    db.commit()
-
-    return {
-        'message': 'Logout successful',
-        "username": username,
-    }
+    return {'message': 'Logout successful'}
 
 
-# Add a helper endpoint to check session status
 @router.get('/session-status')
-def session_status(request: Request, db: Session = Depends(get_db)):
-    session_id = request.cookies.get('session_id')
-    if not session_id:
-        return {"status": "no_session"}
+def session_status(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    session_id: Optional[str] = Cookie(None, alias="session_id"),
+    db: Session = Depends(get_db)
+):
+    session_token = None
+    client_type = "web"
 
+    # Try to get token from Authorization header (mobile)
+    if credentials:
+        session_token = credentials.credentials
+        client_type = "mobile"
+
+    # If no token in header, try cookie (web)
+    elif session_id:
+        session_token = session_id
+        client_type = "web"
+
+    # No session found
+    if not session_token:
+        return {
+            "status": "no_session",
+            "client_type": client_type
+        }
+
+    # Find session in database
     session = db.query(UserSession).filter(
-        UserSession.session_token == session_id
+        UserSession.session_token == session_token
     ).first()
 
     if not session:
-        return {"status": "invalid_session"}
+        return {
+            "status": "invalid_session",
+            "client_type": client_type
+        }
 
+    # Check if session is expired
     if session.expires_at < datetime.now(timezone.utc):
-        return {"status": "expired_session"}
+        # Mark session as inactive if expired
+        session.is_active = False
+        db.commit()
+        return {
+            "status": "expired_session",
+            "client_type": client_type
+        }
 
+    # Check if session is active
+    if not session.is_active:
+        return {
+            "status": "inactive_session",
+            "client_type": client_type
+        }
+
+    # Get user information
+    user = db.query(User).filter(User.id == session.user_id).first()
+    if not user:
+        return {
+            "status": "user_not_found",
+            "client_type": client_type
+        }
+
+    # Return valid session info
     return {
         "status": "valid_session",
-        "user": session.user.username,
-        "expires_at": session.expires_at
+        "client_type": client_type,
+        "is_mobile": session.is_mobile,
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "is_verified": user.is_verified
+        },
+        "session": {
+            "created_at": session.created_at,
+            "expires_at": session.expires_at,
+            "last_activity": session.last_activity_at if hasattr(session, 'last_activity_at') else None
+        }
     }

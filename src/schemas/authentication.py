@@ -2,6 +2,7 @@
 import re
 from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field, validator
+from typing import Optional
 
 
 class UserRegister(BaseModel):
@@ -48,6 +49,7 @@ class UserResponse(BaseModel):
 class LoginResponse(BaseModel):
     message: str
     user: UserResponse
+    token: Optional[str] = None
 
     class Config:
         from_attributes = True  # best for return to user/client

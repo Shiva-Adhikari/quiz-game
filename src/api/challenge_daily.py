@@ -481,7 +481,7 @@ def create_challenge_session(db: Session, user_id: int, challenge_type: str):
         }
 
     # Set started_at if not already set
-    if not user_attempt.started_at:
+    if not user_attempt.started_at and challenge_type != 'lightning_round':
         user_attempt.started_at = datetime.now(timezone.utc)
         db.commit()
 
@@ -730,14 +730,22 @@ def handle_speed_challenge_answer(db: Session, attempt: UserChallengeAttempt, qu
 def handle_lightning_round_answer(db: Session, attempt: UserChallengeAttempt, question: Question, is_correct: bool):
     """Handle lightning round logic - as many questions as possible in 60 seconds"""
 
-    time_elapsed = (datetime.now(timezone.utc) - attempt.started_at).total_seconds()
+    # Ensure started_at is set - if not set, set it now (this is the first question)
+    if not attempt.started_at:
+        attempt.started_at = datetime.now(timezone.utc)
+        time_elapsed = 0  # First question, no time elapsed yet
+        db.commit()  # Save the started_at time immediately
+    else:
+        time_elapsed = (datetime.now(timezone.utc) - attempt.started_at).total_seconds()
 
-    if time_elapsed > 60:
+    # Only check time limit if this is not the first question (time_elapsed > 1)
+    if time_elapsed > 1 and time_elapsed > 60:
         # Time's up!
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
         attempt.is_successful = True  # Always successful if you tried
         attempt.completed_at = datetime.now(timezone.utc)
+        print(f'time_taken: {time_elapsed}')
         attempt.time_taken = time_elapsed
         attempt.final_score = attempt.correct_answers * 5
 
@@ -1000,9 +1008,15 @@ def daily_challenge_answer(request: AnswerSubmissionRequest, db: Session = Depen
         attempt.wrong_answers += 1
         attempt.current_streak = 0
 
+    # Get challenge type first
+    challenge_type = attempt.daily_challenge.challenge_type
+
     # Update status to in_progress if first question
     if attempt.status == ChallengeStatus.NOT_STARTED:
         attempt.status = ChallengeStatus.IN_PROGRESS
+        # For lightning round, start timer now when first answer is submitted
+        if challenge_type == 'lightning_round' and not attempt.started_at:
+            attempt.started_at = datetime.now(timezone.utc)
 
     # Calculate accuracy
     if attempt.questions_answered > 0:
