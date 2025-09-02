@@ -33,7 +33,6 @@ class CategoryUpdate(BaseModel):
     is_active: Optional[bool] = Field(None, description='Whether the category is active')
 
 
-
 class QuestionUpdate(BaseModel):
     question_text: Optional[str] = Field(None, min_length=1, max_length=500, description='Question')
     difficulty_level: Optional[DifficultyLevel] = Field(None, description='Question difficulty level')
