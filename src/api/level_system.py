@@ -178,3 +178,63 @@ def create_level(level_data: LevelSystemCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create level: {str(e)}"
         )
+
+
+'''
+# pagination in level system
+@router.get("/list")
+def get_levels(
+    search: Optional[str] = Query(None, description="Search in level name or description"),
+    page: int = Query(1, ge=1, description="Page number"),
+    per_page: int = Query(10, ge=1, le=100, description="Items per page"),
+    db: Session = Depends(get_db)
+):
+    """Get levels with search and pagination"""
+
+    query = db.query(LevelSystem)
+
+    # Apply search
+    if search:
+        search_filter = f"%{search.lower()}%"
+        query = query.filter(
+            (LevelSystem.level_name.ilike(search_filter)) |
+            (LevelSystem.description.ilike(search_filter))
+        )
+
+    # Count total
+    total = query.count()
+
+    # Pagination
+    offset = (page - 1) * per_page
+    levels = query.offset(offset).limit(per_page).all()
+
+    # Pagination metadata
+    total_pages = (total + per_page - 1) // per_page
+    has_next = page < total_pages
+    has_prev = page > 1
+
+    return {
+        "message": "Levels retrieved successfully",
+        "data": {
+            "levels": [
+                {
+                    "id": lvl.id,
+                    "level": lvl.level,
+                    "level_name": lvl.level_name,
+                    "min_xp_required": lvl.min_xp_required,
+                    "max_xp_required": lvl.max_xp_required,
+                    "description": lvl.description
+                }
+                for lvl in levels
+            ],
+            "pagination": {
+                "current_page": page,
+                "per_page": per_page,
+                "total_items": total,
+                "total_pages": total_pages,
+                "has_next": has_next,
+                "has_prev": has_prev
+            }
+        }
+    }
+'''
