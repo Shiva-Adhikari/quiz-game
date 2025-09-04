@@ -8,7 +8,8 @@ from src.schemas.multiplayer import (
     RoomCreate, RoomResponse, RoomDetailResponse, JoinRoomRequest,
     PlayerReadyRequest, SubmitAnswerRequest, ParticipantResponse
 )
-import src.utils.multiplayer.crud as crud
+# import src.utils.multiplayer.crud as crud
+from src.utils.multiplayer import crud as crud
 from src.utils.multiplayer.websocket_manager import manager
 from src.utils.multiplayer.game_engine import MultiplayerGameEngine
 from typing import Dict
