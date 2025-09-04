@@ -421,22 +421,22 @@ def get_random_questions_optimized(db: Session, limit: int):
     """Optimized random question selection"""
     # Count total active questions
     total_count = db.query(Question).filter(Question.is_active).count()
-    
+
     if total_count < limit:
         # Return all available if not enough questions
         return db.query(Question).filter(Question.is_active).all()
-    
+
     # Generate random offsets
     import random
     offsets = set()
     while len(offsets) < limit:
         offsets.add(random.randint(0, total_count - 1))
-    
+
     # Get questions at random positions
     questions = []
     for offset in offsets:
         question = db.query(Question).filter(Question.is_active).offset(offset).first()
         if question:
             questions.append(question)
-    
+
     return questions

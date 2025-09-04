@@ -1,7 +1,7 @@
 from sqlalchemy import Integer, String, Boolean, DateTime, ForeignKey, Text, func
 from sqlalchemy.orm import relationship, Mapped, mapped_column
-from datetime import datetime, timezone
-from src.core.database import Base  # Your existing base
+from datetime import datetime
+from src.core.database import Base
 from typing import Optional, List
 
 

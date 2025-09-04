@@ -1,14 +1,14 @@
-# Standard library imports
+# === Standard library imports ===
 import random
 import hashlib
 from datetime import date, datetime, timezone
 
-# Third-party imports
+# === Third-party imports ===
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException
 
-# Local imports
+# === Local imports ===
 from src.utils.db import get_db
 from src.models.questions import Question
 from src.models.authentication import User
@@ -85,7 +85,7 @@ def get_today_challenge_type() -> str:
 
     selected_challenge = random.choices(challenges, weights=weights, k=1)[0]    # select 1 item, k=1
 
-    # Reset random seed
+    # === Reset random seed ===
     random.seed()
 
     return selected_challenge
@@ -162,7 +162,7 @@ def get_or_create_user_attempt(db: Session, user_id: int, daily_challenge_id: in
 def create_survival_mode_session(db: Session, user_id: int):
     """Create a new survival mode daily challenge session"""
 
-    # Get today's challenge or create it
+    # === Get today's challenge or create it ===
     daily_challenge = get_today_challenge(db)
     if not daily_challenge:
         daily_challenge = DailyChallenge(
@@ -174,17 +174,17 @@ def create_survival_mode_session(db: Session, user_id: int):
         db.flush()
         db.commit()
 
-    # Get or create user attempt
+    # === Get or create user attempt ===
     user_attempt = get_or_create_user_attempt(db, user_id, daily_challenge.id)
 
-    # If user already completed today's challenge
+    # === If user already completed today's challenge ===
     if user_attempt.is_completed:
         return {
             'error': "You have already completed today's daily challenge",
             'attempt': user_attempt
         }
 
-    # ADD THIS RETURN STATEMENT:
+    # === ADD THIS RETURN STATEMENT: ===
     return {
         'daily_challenge': daily_challenge,
         'user_attempt': user_attempt
@@ -194,14 +194,14 @@ def create_survival_mode_session(db: Session, user_id: int):
 def survival_mode(db: Session, current_user: User):
     """Get survival mode challenge"""
 
-    # Create daily challenge session
+    # === Create daily challenge session ===
     session_data = create_survival_mode_session(db, current_user.id)
 
-    # Check if user already completed
+    # === Check if user already completed ===
     if "error" in session_data:
         return session_data
 
-    # Get first question
+    # === Get first question ===
     question = get_random_question(db)
     if not question:
         raise HTTPException(status_code=404, detail='No questions available')
@@ -236,14 +236,14 @@ def survival_mode(db: Session, current_user: User):
 def perfect_score_mode(db: Session, current_user: User):
     """Start perfect score challenge - 100% accuracy on 10 questions"""
 
-    # Create daily challenge session
+    # === Create daily challenge session ===
     session_data = create_challenge_session(db, current_user.id, 'perfect_score')
 
-    # Check if user already completed
+    # === Check if user already completed ===
     if "error" in session_data:
         return session_data
 
-    # Get first question
+    # === Get first question ===
     question = get_random_question(db)
     if not question:
         raise HTTPException(status_code=404, detail='No questions available')
@@ -277,19 +277,19 @@ def perfect_score_mode(db: Session, current_user: User):
 def speed_challenge_mode(db: Session, current_user: User):
     """Start speed challenge - 10 questions in 2 minutes"""
 
-    # Create daily challenge session
+    # === Create daily challenge session ===
     session_data = create_challenge_session(db, current_user.id, 'speed_challenge')
 
-    # Check if user already completed
+    # === Check if user already completed ===
     if "error" in session_data:
         return session_data
 
-    # Get first question
+    # === Get first question ===
     question = get_random_question(db)
     if not question:
         raise HTTPException(status_code=404, detail='No questions available')
 
-    # Calculate time remaining if already started
+    # === Calculate time remaining if already started ===
     time_remaining = 120  # 2 minutes default
     if session_data['user_attempt'].started_at:
         time_elapsed = (datetime.now(timezone.utc) - session_data['user_attempt'].started_at).total_seconds()
@@ -325,19 +325,19 @@ def speed_challenge_mode(db: Session, current_user: User):
 def lightning_round_mode(db: Session, current_user: User):
     """Start lightning round - as many questions as possible in 60 seconds"""
 
-    # Create daily challenge session
+    # === Create daily challenge session ===
     session_data = create_challenge_session(db, current_user.id, 'lightning_round')
 
-    # Check if user already completed
+    # === Check if user already completed ===
     if "error" in session_data:
         return session_data
 
-    # Get first question
+    # === Get first question ===
     question = get_random_question(db)
     if not question:
         raise HTTPException(status_code=404, detail='No questions available')
 
-    # Calculate time remaining if already started
+    # === Calculate time remaining if already started ===
     time_remaining = 60  # 1 minute default
     if session_data['user_attempt'].started_at:
         time_elapsed = (datetime.now(timezone.utc) - session_data['user_attempt'].started_at).total_seconds()
@@ -372,14 +372,14 @@ def lightning_round_mode(db: Session, current_user: User):
 def streak_target_mode(db: Session, current_user: User):
     """Start streak target challenge - maintain 5-question streak"""
 
-    # Create daily challenge session
+    # === Create daily challenge session ===
     session_data = create_challenge_session(db, current_user.id, 'streak_target')
 
-    # Check if user already completed
+    # === Check if user already completed ===
     if "error" in session_data:
         return session_data
 
-    # Get first question
+    # === Get first question ===
     question = get_random_question(db)
     if not question:
         raise HTTPException(status_code=404, detail='No questions available')
@@ -414,14 +414,14 @@ def streak_target_mode(db: Session, current_user: User):
 def marathon_mode(db: Session, current_user: User):
     """Start marathon mode challenge - complete 25 questions"""
 
-    # Create daily challenge session
+    # === Create daily challenge session ===
     session_data = create_challenge_session(db, current_user.id, 'marathon_mode')
 
-    # Check if user already completed
+    # === Check if user already completed ===
     if "error" in session_data:
         return session_data
 
-    # Get first question
+    # === Get first question ===
     question = get_random_question(db)
     if not question:
         raise HTTPException(status_code=404, detail='No questions available')
@@ -458,7 +458,7 @@ def marathon_mode(db: Session, current_user: User):
 def create_challenge_session(db: Session, user_id: int, challenge_type: str):
     """Generic function to create challenge session for any challenge type"""
 
-    # Get today's challenge or create it
+    # === Get today's challenge or create it ===
     daily_challenge = get_today_challenge(db)
     if not daily_challenge:
         daily_challenge = DailyChallenge(
@@ -470,17 +470,17 @@ def create_challenge_session(db: Session, user_id: int, challenge_type: str):
         db.flush()
         db.commit()
 
-    # Get or create user attempt
+    # === Get or create user attempt ===
     user_attempt = get_or_create_user_attempt(db, user_id, daily_challenge.id)
 
-    # If user already completed today's challenge
+    # === If user already completed today's challenge ===
     if user_attempt.is_completed:
         return {
             'error': f"You have already completed today's {challenge_type} challenge",
             'attempt': user_attempt
         }
 
-    # Set started_at if not already set
+    # === Set started_at if not already set ===
     if not user_attempt.started_at and challenge_type != 'lightning_round':
         user_attempt.started_at = datetime.now(timezone.utc)
         db.commit()
@@ -495,15 +495,15 @@ def create_challenge_session(db: Session, user_id: int, challenge_type: str):
 # ########################### ANSWER ############################
 
 
-# Challenge-specific handlers
+# === Challenge-specific handlers ===
 def handle_survival_mode_answer(db: Session, attempt: UserChallengeAttempt, question: Question, is_correct: bool):
     """Handle survival mode logic - game over after 3 wrong answers"""
 
     lives_remaining = 3 - attempt.wrong_answers
 
-    # Check if game over (3 wrong answers)
+    # === Check if game over (3 wrong answers) ===
     if attempt.wrong_answers >= 3:
-        # Game over - survival mode failed
+        # === Game over - survival mode failed ===
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
         attempt.is_successful = False
@@ -531,7 +531,7 @@ def handle_survival_mode_answer(db: Session, attempt: UserChallengeAttempt, ques
             "message": "Game Over! You got 3 questions wrong."
         }
 
-    # Continue game - get next question
+    # === Continue game - get next question ===
     db.commit()
     next_question = get_random_question(db)
 
@@ -567,7 +567,7 @@ def handle_survival_mode_answer(db: Session, attempt: UserChallengeAttempt, ques
 def handle_perfect_score_answer_(db: Session, attempt: UserChallengeAttempt, question: Question, is_correct: bool):
     """Handle perfect score logic - 100% accuracy required"""
 
-    # If any wrong answer, challenge failed
+    # === If any wrong answer, challenge failed ===
     if not is_correct:
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
@@ -587,7 +587,7 @@ def handle_perfect_score_answer_(db: Session, attempt: UserChallengeAttempt, que
             "final_stats": build_final_stats(attempt)
         }
 
-    # Check if completed 10 questions with perfect score
+    # === Check if completed 10 questions with perfect score ===
     if attempt.questions_answered >= 10:
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
@@ -607,7 +607,7 @@ def handle_perfect_score_answer_(db: Session, attempt: UserChallengeAttempt, que
             "final_stats": build_final_stats(attempt)
         }
 
-    # Continue with next question
+    # === Continue with next question ===
     db.commit()
     next_question = get_random_question(db)
 
@@ -626,7 +626,7 @@ def handle_perfect_score_answer_(db: Session, attempt: UserChallengeAttempt, que
 def handle_marathon_mode_answer(db: Session, attempt: UserChallengeAttempt, question: Question, is_correct: bool):
     """Handle marathon mode logic - complete 25 questions"""
 
-    # Check if completed all 25 questions
+    # === Check if completed all 25 questions ===
     if attempt.questions_answered >= 25:
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
@@ -646,7 +646,7 @@ def handle_marathon_mode_answer(db: Session, attempt: UserChallengeAttempt, ques
             "final_stats": build_final_stats(attempt)
         }
 
-    # Continue marathon
+    # === Continue marathon ===
     db.commit()
     next_question = get_random_question(db)
 
@@ -664,11 +664,11 @@ def handle_marathon_mode_answer(db: Session, attempt: UserChallengeAttempt, ques
 def handle_speed_challenge_answer(db: Session, attempt: UserChallengeAttempt, question: Question, is_correct: bool):
     """Handle speed challenge logic - 10 questions in 2 minutes"""
 
-    # Check time limit (2 minutes = 120 seconds)
+    # === Check time limit (2 minutes = 120 seconds) ===
     time_elapsed = (datetime.now(timezone.utc) - attempt.started_at).total_seconds()
 
     if time_elapsed > 120:
-        # Time's up!
+        # === Time's up! ===
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
         attempt.is_successful = False
@@ -689,7 +689,7 @@ def handle_speed_challenge_answer(db: Session, attempt: UserChallengeAttempt, qu
             "final_stats": build_final_stats(attempt)
         }
 
-    # Check if completed 10 questions
+    # === Check if completed 10 questions ===
     if attempt.questions_answered >= 10:
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
@@ -711,7 +711,7 @@ def handle_speed_challenge_answer(db: Session, attempt: UserChallengeAttempt, qu
             "final_stats": build_final_stats(attempt)
         }
 
-    # Continue speed challenge
+    # === Continue speed challenge ===
     db.commit()
     next_question = get_random_question(db)
 
@@ -730,7 +730,7 @@ def handle_speed_challenge_answer(db: Session, attempt: UserChallengeAttempt, qu
 def handle_lightning_round_answer(db: Session, attempt: UserChallengeAttempt, question: Question, is_correct: bool):
     """Handle lightning round logic - as many questions as possible in 60 seconds"""
 
-    # Ensure started_at is set - if not set, set it now (this is the first question)
+    # === Ensure started_at is set - if not set, set it now (this is the first question) ===
     if not attempt.started_at:
         attempt.started_at = datetime.now(timezone.utc)
         time_elapsed = 0  # First question, no time elapsed yet
@@ -738,9 +738,9 @@ def handle_lightning_round_answer(db: Session, attempt: UserChallengeAttempt, qu
     else:
         time_elapsed = (datetime.now(timezone.utc) - attempt.started_at).total_seconds()
 
-    # Only check time limit if this is not the first question (time_elapsed > 1)
+    # === Only check time limit if this is not the first question (time_elapsed > 1) ===
     if time_elapsed > 1 and time_elapsed > 60:
-        # Time's up!
+        # === Time's up! ===
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
         attempt.is_successful = True  # Always successful if you tried
@@ -762,7 +762,7 @@ def handle_lightning_round_answer(db: Session, attempt: UserChallengeAttempt, qu
             "final_stats": build_final_stats(attempt)
         }
 
-    # Continue lightning round
+    # === Continue lightning round ===
     db.commit()
     next_question = get_random_question(db)
 
@@ -780,7 +780,7 @@ def handle_lightning_round_answer(db: Session, attempt: UserChallengeAttempt, qu
 def handle_streak_target_answer(db: Session, attempt: UserChallengeAttempt, question: Question, is_correct: bool):
     """Handle streak target logic - maintain 5-question streak"""
 
-    # Check if achieved 5-question streak
+    # === Check if achieved 5-question streak ===
     if attempt.current_streak >= 5:
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
@@ -800,7 +800,7 @@ def handle_streak_target_answer(db: Session, attempt: UserChallengeAttempt, ques
             "final_stats": build_final_stats(attempt)
         }
 
-    # Check if streak broken and too many attempts
+    # === Check if streak broken and too many attempts ===
     if not is_correct and attempt.questions_answered > 15:  # Give reasonable attempts
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
@@ -820,7 +820,7 @@ def handle_streak_target_answer(db: Session, attempt: UserChallengeAttempt, ques
             "final_stats": build_final_stats(attempt)
         }
 
-    # Continue streak challenge
+    # === Continue streak challenge ===
     db.commit()
     next_question = get_random_question(db)     # i already defined it.
 
@@ -836,7 +836,7 @@ def handle_streak_target_answer(db: Session, attempt: UserChallengeAttempt, ques
     }
 
 
-# Helper functions
+# === Helper functions ===
 def build_final_stats(attempt: UserChallengeAttempt) -> dict:
     """Build standardized final stats object"""
     return {
@@ -868,11 +868,11 @@ def build_question_response(question: Question) -> dict:
     }
 
 
-# You'll also need to add these placeholder handlers for the remaining challenges:
+# === You'll also need to add these placeholder handlers for the remaining challenges: ===
 def handle_perfect_score_answer(db: Session, attempt: UserChallengeAttempt, question: Question, is_correct: bool):
     """Handle perfect score logic - 100% accuracy on 10 questions"""
 
-    # If any wrong answer, challenge failed
+    # === If any wrong answer, challenge failed ===
     if not is_correct:
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
@@ -892,7 +892,7 @@ def handle_perfect_score_answer(db: Session, attempt: UserChallengeAttempt, ques
             "final_stats": build_final_stats(attempt)
         }
 
-    # Check if completed 10 questions with perfect score
+    # === Check if completed 10 questions with perfect score ===
     if attempt.questions_answered >= 10:
         attempt.status = ChallengeStatus.COMPLETED
         attempt.is_completed = True
@@ -912,7 +912,7 @@ def handle_perfect_score_answer(db: Session, attempt: UserChallengeAttempt, ques
             "final_stats": build_final_stats(attempt)
         }
 
-    # Continue with next question
+    # === Continue with next question ===
     db.commit()
     next_question = get_random_question(db)
 
@@ -958,16 +958,16 @@ def run_functions(challenge_type: str, db: Session, current_user: User):
 def daily_challenge(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Start today daily challenge"""
 
-    # Get today challenge
+    # === Get today challenge ===
     todays_challenge = get_today_challenge_type()
     # todays_challenge = 'survival_mode'
     print(f'\n\ntodays_challenge: {todays_challenge}')
 
-    # Get challenge details
+    # === Get challenge details ===
     challenge_info = get_challenge_info(todays_challenge)
     print(f'challenge_info: {challenge_info}')
 
-    # Get Today challenge
+    # === Get Today challenge ===
     daily_schedule = get_daily_schedule()
     print(f'\nDaily Schedule: {daily_schedule}')
 
@@ -978,7 +978,7 @@ def daily_challenge(db: Session = Depends(get_db), current_user: User = Depends(
 def daily_challenge_answer(request: AnswerSubmissionRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Dynamic answer submission handler for all challenge types"""
 
-    # 1. Get and validate user attempt
+    # === 1. Get and validate user attempt ===
     attempt = db.query(UserChallengeAttempt).filter(
         UserChallengeAttempt.id == request.attempt_id,
         UserChallengeAttempt.user_id == current_user.id
@@ -990,14 +990,14 @@ def daily_challenge_answer(request: AnswerSubmissionRequest, db: Session = Depen
     if attempt.is_completed:
         raise HTTPException(status_code=400, detail="Challenge already completed")
 
-    # 2. Get question and validate answer
+    # === 2. Get question and validate answer ===
     question = db.query(Question).filter(Question.id == request.question_id).first()
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
 
     is_correct = question.correct_answer.upper() == request.selected_answer.upper()
 
-    # 3. Update attempt stats (common for all challenges)
+    # === 3. Update attempt stats (common for all challenges) ===
     attempt.questions_answered += 1
     if is_correct:
         attempt.correct_answers += 1
@@ -1008,23 +1008,23 @@ def daily_challenge_answer(request: AnswerSubmissionRequest, db: Session = Depen
         attempt.wrong_answers += 1
         attempt.current_streak = 0
 
-    # Get challenge type first
+    # === Get challenge type first ===
     challenge_type = attempt.daily_challenge.challenge_type
 
-    # Update status to in_progress if first question
+    # === Update status to in_progress if first question ===
     if attempt.status == ChallengeStatus.NOT_STARTED:
         attempt.status = ChallengeStatus.IN_PROGRESS
         # For lightning round, start timer now when first answer is submitted
         if challenge_type == 'lightning_round' and not attempt.started_at:
             attempt.started_at = datetime.now(timezone.utc)
 
-    # Calculate accuracy
+    # === Calculate accuracy ===
     if attempt.questions_answered > 0:
         attempt.accuracy_percentage = (attempt.correct_answers / attempt.questions_answered) * 100
 
     attempt.updated_at = datetime.now(timezone.utc)
 
-    # 4. Get challenge type and route to specific logic
+    # === 4. Get challenge type and route to specific logic ===
     challenge_type = attempt.daily_challenge.challenge_type
 
     match challenge_type:
@@ -1057,7 +1057,7 @@ def get_daily_challenge_progress(
 ):
     """Get user's progress on today's daily challenge"""
 
-    # Get today's challenge
+    # === Get today's challenge ===
     daily_challenge = get_today_challenge(db)  # Fixed function name
 
     if not daily_challenge:
@@ -1070,7 +1070,7 @@ def get_daily_challenge_progress(
             "message": "Daily challenge available - not started yet"
         }
 
-    # Get user's attempt
+    # === Get user's attempt ===
     attempt = db.query(UserChallengeAttempt).filter(
         UserChallengeAttempt.user_id == current_user.id,
         UserChallengeAttempt.daily_challenge_id == daily_challenge.id
@@ -1085,7 +1085,7 @@ def get_daily_challenge_progress(
             "message": "Daily challenge available - not started yet"
         }
 
-    # Build challenge-specific progress data
+    # === Build challenge-specific progress data ===
     challenge_progress = get_challenge_progress_data(daily_challenge.challenge_type, attempt)
 
     return {
@@ -1131,16 +1131,16 @@ def get_challenge_progress_data(challenge_type: str, attempt: UserChallengeAttem
 def get_today_challenge_info(db: Session = Depends(get_db)):
     """Get information about today's challenge"""
 
-    # Get today's challenge type
+    # === Get today's challenge type ===
     todays_challenge_type = get_today_challenge_type()  # Fixed function name
 
-    # Get challenge details
+    # === Get challenge details ===
     challenge_info = get_challenge_info(todays_challenge_type)
 
-    # Get daily schedule
+    # === Get daily schedule ===
     daily_schedule = get_daily_schedule()
 
-    # Check if challenge already exists in database
+    # === Check if challenge already exists in database ===
     existing_challenge = get_today_challenge(db)
 
     return {

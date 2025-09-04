@@ -1,7 +1,5 @@
 # Standard library imports
-from typing import (
-    Optional, List, TYPE_CHECKING
-)
+from typing import Optional
 from datetime import datetime
 
 # Third-party imports
@@ -16,8 +14,6 @@ from sqlalchemy.orm import (
 
 # Local imports
 from src.core.database import Base
-# if TYPE_CHECKING:
-# from src.models.quiz_session import QuizSession
 
 
 class User(Base):
@@ -37,31 +33,9 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now(),
         onupdate=func.now())
 
-    # email_verification: Mapped["EmailVerification"] = relationship(
-        # "EmailVerification", back_populates="user")
     user_session: Mapped["UserSession"] = relationship("UserSession", back_populates="user")
 
-    # quiz_sessions: Mapped[list["QuizSession"]] = relationship('QuizSession', back_populates="user")
-
     profile = relationship("UserProfile", back_populates="user", uselist=False)
-
-
-'''
-
-    # # These should be plural (one-to-many)
-
-    # active_quiz_session: Mapped[List['ActiveQuizSession']] = relationship(
-    #     'ActiveQuizSession', back_populates='user')
-    # question_history: Mapped[List['QuestionHistory']] = relationship(
-    #     'QuestionHistory', back_populates='user')
-
-    # # This should be singular (one-to-one)
-    # user_statistics: Mapped['UserStatistics'] = relationship(
-    #     'UserStatistics', back_populates='user')
-
-    # def __repr__(self):
-    #     return f'<User(id={self.id}, email={self.email}, username={self.username})>'
-'''
 
 
 class EmailVerification(Base):
@@ -80,12 +54,8 @@ class EmailVerification(Base):
     verified_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True)
 
-    # user: Mapped['User'] = relationship(
-        # 'User', back_populates='email_verification')
-
 
 '''
-
     # __table_args__ = (
     #     CheckConstraint(
     #         'token IS NULL OR (token >= 100000 AND token <= 999999)'),
@@ -117,9 +87,4 @@ class UserSession(Base):
     user: Mapped['User'] = relationship(
         'User', back_populates='user_session')
 
-
-'''
-    # category: Mapped['Category'] = relationship(
-        # 'Category', back_populates='user_session')
-'''
 # /

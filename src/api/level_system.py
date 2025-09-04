@@ -127,27 +127,27 @@ def delete_level(
 @router.post("/", response_model=LevelSystemResponse)
 def create_level(level_data: LevelSystemCreate, db: Session = Depends(get_db)):
     """Create new level (Admin only)"""
-    
+
     # Validate level number
     if level_data.level < 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Level must be positive"
         )
-    
+
     # Validate XP ranges
     if level_data.min_xp_required < 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Minimum XP cannot be negative"
         )
-    
+
     if level_data.max_xp_required <= level_data.min_xp_required:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Maximum XP must be greater than minimum XP"
         )
-    
+
     # Check for existing level
     existing = crud_level.get_level_by_number(db, level_data.level)
     if existing:
@@ -155,7 +155,7 @@ def create_level(level_data: LevelSystemCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Level {level_data.level} already exists"
         )
-    
+
     # Check for overlapping XP ranges
     overlapping = db.query(LevelSystem).filter(
         ((LevelSystem.min_xp_required <= level_data.min_xp_required) & 
@@ -163,13 +163,13 @@ def create_level(level_data: LevelSystemCreate, db: Session = Depends(get_db)):
         ((LevelSystem.min_xp_required <= level_data.max_xp_required) & 
          (LevelSystem.max_xp_required >= level_data.max_xp_required))
     ).first()
-    
+
     if overlapping:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"XP range overlaps with level {overlapping.level}"
         )
-    
+
     try:
         level = crud_level.create_level(db, level_data)
         return level

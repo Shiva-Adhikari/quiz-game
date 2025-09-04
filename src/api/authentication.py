@@ -1,9 +1,9 @@
-# Standard library imports
+# === Standard library imports ===
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-# Third-party imports
+# === Third-party imports ===
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -12,7 +12,7 @@ from fastapi import (
     Request, Header, Cookie
 )
 
-# Local imports
+# === Local imports===
 from src.utils.db import get_db
 # from src.utils.email_send import send_email
 from src.utils.generate_otp import generate_otp
@@ -48,8 +48,8 @@ def register(user: UserRegister, db: Session = Depends(get_db)) -> UserResponse:
     otp = generate_otp()
     expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
 
-    ''' # block otp for sending in development
-    # send email
+    ''' # === block otp for sending in development ===
+    # === send email ===
     sent_email = send_email(user.email, otp)
     if not sent_email:
         raise HTTPException(status_code=404, detail='Invalid email')
@@ -60,7 +60,7 @@ def register(user: UserRegister, db: Session = Depends(get_db)) -> UserResponse:
     hashed_password = hash_password(user.password)
 
     try:
-        # create new user
+        # === create new user ===
         user_table = User(
             email=user.email,
             username=user.username,
@@ -76,7 +76,7 @@ def register(user: UserRegister, db: Session = Depends(get_db)) -> UserResponse:
         )
         db.add(email_verification_table)
 
-        # === ADD THIS: Auto-create user profile ===
+        # === Auto-create user profile ===
         from src.models.user_profile import UserProfile  # Import your UserProfile model
 
         user_profile = UserProfile(
@@ -88,7 +88,6 @@ def register(user: UserRegister, db: Session = Depends(get_db)) -> UserResponse:
             total_games_played=0
         )
         db.add(user_profile)
-        # === END ADDITION ===
 
         # commit both together
         db.commit()
@@ -114,11 +113,11 @@ def verify_email(email: str, otp: int, db: Session = Depends(get_db)) -> dict:
         EmailVerification.user_id == user_table.id
     ).first()
 
-    # Check if verification record exists FIRST
+    # === Check if verification record exists FIRST ===
     if not email_verification_table:
         raise HTTPException(status_code=400, detail='No verification record found')
 
-    # check otp expired and not expires
+    # === check otp expired and not expires ===
     if email_verification_table.is_used:
         raise HTTPException(status_code=400, detail='Otp already used')
 
@@ -146,7 +145,7 @@ def verify_email(email: str, otp: int, db: Session = Depends(get_db)) -> dict:
                 status_code=429,
                 detail='Otp Expired, Please request a new otp')
 
-    # Success - verify user and cleanup
+    # === Success - verify user and cleanup ===
     user_table.is_verified = True
     email_verification_table.token = None
     email_verification_table.expires_at = None
@@ -200,7 +199,7 @@ def login(
     db.commit()
 
     # '''
-    # Set cookie for web browsers (not mobile apps)
+    # === Set cookie for web browsers (not mobile apps) ===
     if not is_mobile_app:
         response.set_cookie(
             key='session_id',
@@ -237,7 +236,7 @@ def logout(
     db: Session = Depends(get_db)
 ):
 
-    # Get session token
+    # === Get session token ===
     session_token = None
     if credentials:
         session_token = credentials.credentials
@@ -245,7 +244,7 @@ def logout(
         session_token = session_id
 
     if session_token:
-        # Deactivate session
+        # === Deactivate session ===
         session = db.query(UserSession).filter(
             UserSession.session_token == session_token
         ).first()
@@ -253,7 +252,7 @@ def logout(
             session.is_active = False
             db.commit()
 
-    # Clear cookie
+    # === Clear cookie ===
     response.delete_cookie(key='session_id')
 
     return {'message': 'Logout successful'}
@@ -269,24 +268,24 @@ def session_status(
     session_token = None
     client_type = "web"
 
-    # Try to get token from Authorization header (mobile)
+    # === Try to get token from Authorization header (mobile) ===
     if credentials:
         session_token = credentials.credentials
         client_type = "mobile"
 
-    # If no token in header, try cookie (web)
+    # === If no token in header, try cookie (web) ===
     elif session_id:
         session_token = session_id
         client_type = "web"
 
-    # No session found
+    # === No session found ===
     if not session_token:
         return {
             "status": "no_session",
             "client_type": client_type
         }
 
-    # Find session in database
+    # === Find session in database ===
     session = db.query(UserSession).filter(
         UserSession.session_token == session_token
     ).first()
@@ -297,7 +296,7 @@ def session_status(
             "client_type": client_type
         }
 
-    # Check if session is expired
+    # === Check if session is expired ===
     if session.expires_at < datetime.now(timezone.utc):
         # Mark session as inactive if expired
         session.is_active = False
@@ -307,14 +306,14 @@ def session_status(
             "client_type": client_type
         }
 
-    # Check if session is active
+    # === Check if session is active ===
     if not session.is_active:
         return {
             "status": "inactive_session",
             "client_type": client_type
         }
 
-    # Get user information
+    # === Get user information ===
     user = db.query(User).filter(User.id == session.user_id).first()
     if not user:
         return {
@@ -322,7 +321,7 @@ def session_status(
             "client_type": client_type
         }
 
-    # Return valid session info
+    # === Return valid session info ===
     return {
         "status": "valid_session",
         "client_type": client_type,

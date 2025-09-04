@@ -155,7 +155,7 @@ def get_badge_notifications(
             message=f"Congratulations! You've earned the '{user_badge.badge.name}' badge!"
         ))
 
-    # Mark as notified
+    # === Mark as notified ===
     if unnotified_badges:
         badge_ids = [badge.id for badge in unnotified_badges]
         badge_service.mark_badges_notified(badge_ids)

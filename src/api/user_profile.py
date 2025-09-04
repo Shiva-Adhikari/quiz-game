@@ -20,21 +20,21 @@ def get_my_profile(
     """Get current user's complete profile"""
     try:
         profile = crud_profile.get_user_profile(db, current_user.id)
-        
+
         if not profile:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Profile not found"
             )
-        
+
         # Add calculated fields
         profile = format_profile_response(profile, db)
-        
+
         # Log access for analytics (optional)
         # is_mobile = user_agent and ('okhttp' in user_agent.lower() or 'android' in user_agent.lower() or 'ios' in user_agent.lower())
-        
+
         return profile
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -56,23 +56,23 @@ def get_user_profile(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid user ID"
         )
-    
+
     try:
         profile = crud_profile.get_user_profile(db, user_id)
-        
+
         if not profile:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Profile not found"
             )
-        
+
         # Check if profile is private and user is not authenticated
         if hasattr(profile, 'is_private') and profile.is_private and not current_user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Authentication required to view private profile"
             )
-        
+
         # Check if profile is private and user is not the owner or friend
         if (hasattr(profile, 'is_private') and profile.is_private and 
             current_user and current_user.id != user_id):
@@ -81,11 +81,11 @@ def get_user_profile(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Cannot view private profile"
             )
-        
+
         # Add calculated fields
         profile = format_profile_response(profile, db)
         return profile
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -109,33 +109,33 @@ def update_my_profile(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid display name format. Use only letters, numbers, spaces, and underscores (3-30 characters)"
         )
-    
+
     try:
         # Check if user is verified for certain profile updates
         if not current_user.is_verified:
             # Restrict certain updates for unverified users
             restricted_fields = ['bio', 'location', 'website']
             update_dict = profile_update.dict(exclude_unset=True)
-            
+
             for field in restricted_fields:
                 if field in update_dict and update_dict[field]:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail=f"Email verification required to update {field}"
                     )
-        
+
         profile = crud_profile.update_user_profile(db, current_user.id, profile_update)
-        
+
         if not profile:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Profile not found"
             )
-        
+
         # Add calculated fields
         profile = format_profile_response(profile, db)
         return profile
-        
+
     except HTTPException:
         raise
     except ValueError as e:
@@ -158,19 +158,19 @@ def get_my_rank(
     """Get current user's global rank"""
     try:
         rank = crud_profile.get_user_rank(db, current_user.id)
-        
+
         if rank is None:
             return {
                 "rank": None,
                 "message": "Rank not available - complete some quizzes first!"
             }
-        
+
         return {
             "rank": rank,
             "user_id": current_user.id,
             "username": current_user.username
         }
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -194,26 +194,26 @@ def update_my_stats(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Values cannot be negative"
         )
-    
+
     # Reasonable limits to prevent abuse
     if xp_gained > 10000:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="XP gained exceeds maximum allowed (10,000)"
         )
-    
+
     if coins_gained > 5000:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Coins gained exceeds maximum allowed (5,000)"
         )
-    
+
     if games_played > 100:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Games played exceeds maximum allowed (100)"
         )
-    
+
     try:
         # Check if user is verified
         if not current_user.is_verified:
@@ -221,23 +221,23 @@ def update_my_stats(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Email verification required to update stats"
             )
-        
+
         profile = crud_profile.update_profile_stats(
             db, current_user.id, xp_gained, coins_gained, games_played
         )
-        
+
         if not profile:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Profile not found"
             )
-        
+
         # Add calculated fields
         profile = format_profile_response(profile, db)
-        
+
         # Detect client type for analytics
         is_mobile = user_agent and ('okhttp' in user_agent.lower() or 'android' in user_agent.lower() or 'ios' in user_agent.lower())
-        
+
         return {
             "message": "Stats updated successfully",
             "profile": profile,
@@ -248,7 +248,7 @@ def update_my_stats(
             },
             "client_type": "mobile" if is_mobile else "web"
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -266,15 +266,15 @@ def get_profile_summary(
     """Get a quick summary of user's profile stats"""
     try:
         profile = crud_profile.get_user_profile(db, current_user.id)
-        
+
         if not profile:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Profile not found"
             )
-        
+
         rank = crud_profile.get_user_rank(db, current_user.id)
-        
+
         return {
             "user_id": current_user.id,
             "username": current_user.username,
@@ -286,7 +286,7 @@ def get_profile_summary(
             "level": getattr(profile, 'level', 1),
             "is_verified": current_user.is_verified
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -306,12 +306,12 @@ def delete_my_profile(
         # Instead of hard delete, mark as inactive
         current_user.is_active = False
         db.commit()
-        
+
         return {
             "message": "Profile deactivated successfully",
             "note": "Your account has been deactivated. Contact support to reactivate."
         }
-        
+
     except Exception as e:
         db.rollback()
         raise HTTPException(
