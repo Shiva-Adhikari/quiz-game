@@ -13,11 +13,11 @@ class RoomCreate(BaseModel):
     is_public: bool = True
     room_password: Optional[str] = None
     
-    @validator('max_players')
-    def validate_max_players(cls, v):
-        if v < 2 or v > 6:
-            raise ValueError('Max players must be between 2 and 6')
-        return v
+    # @validator('max_players')
+    # def validate_max_players(cls, v):
+    #     if v < 2 or v > 6:
+    #         raise ValueError('Max players must be between 2 and 6')
+    #     return v
     
     @validator('difficulty_level')
     def validate_difficulty(cls, v):

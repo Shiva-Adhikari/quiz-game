@@ -140,13 +140,27 @@ async def start_game(
         if room.status != "waiting":
             raise HTTPException(status_code=400, detail="Game already started or finished")
 
+        ''' Comment in testing
         # Check if all players are ready
         participants = room_data["participants"]
         all_ready = all(p.is_ready for p in participants) and len(participants) >= 2
 
         if not all_ready:
             raise HTTPException(status_code=400, detail="All players must be ready")
+        '''
 
+        '''participants = room_data["participants"]
+        
+        # === Require readiness only from non-host players ===
+        all_ready = all(
+            (p.is_ready if not p.is_host else True) for p in participants
+        ) and len(participants) >= 2
+
+        if not all_ready:
+            raise HTTPException(status_code=400, detail="All players must be ready")
+
+        # === TESTING END for development ===
+        '''
         # Get questions (this would normally query your Question table)
         # For now, using mock data structure
         mock_questions = generate_mock_questions(db, room.total_questions, room.difficulty_level, room.category_id)
@@ -400,7 +414,7 @@ def generate_mock_questions(db: Session, total_questions: int, difficulty: str, 
         "option_b": q.option_b,
         "option_c": q.option_c,
         "option_d": q.option_d,
-        "correct_answer": q.correct_answer,
+        # "correct_answer": q.correct_answer,
         "explanation": getattr(q, 'explanation', ''),
         "difficulty": q.difficulty_level
     } for q in questions]

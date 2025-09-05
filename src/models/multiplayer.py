@@ -37,7 +37,7 @@ class RoomParticipant(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     room_id: Mapped[int] = mapped_column(ForeignKey("multiplayer_rooms.id"))
     user_id: Mapped[int] = mapped_column(Integer)  # ForeignKey to User
-    is_ready: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_ready: Mapped[bool] = mapped_column(Boolean, default=True)
     is_host: Mapped[bool] = mapped_column(Boolean, default=False)
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     left_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
