@@ -143,3 +143,11 @@ class GameResultResponse(BaseModel):
     correct_answer: str
     player_scores: List[dict]
     leaderboard: List[dict]
+
+
+class RoomSettingsUpdate(BaseModel):
+    max_players: int = 4
+    category_id: Optional[int] = None
+    difficulty_level: str = "medium"
+    total_questions: int = 10
+    time_per_question: int = 30

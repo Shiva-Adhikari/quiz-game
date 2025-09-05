@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
@@ -6,7 +6,7 @@ import json
 
 from src.schemas.multiplayer import (
     RoomCreate, RoomResponse, RoomDetailResponse, JoinRoomRequest,
-    PlayerReadyRequest, SubmitAnswerRequest, ParticipantResponse
+    PlayerReadyRequest, SubmitAnswerRequest, ParticipantResponse, RoomSettingsUpdate
 )
 # import src.utils.multiplayer.crud as crud
 from src.utils.multiplayer import crud as crud
@@ -17,7 +17,8 @@ from datetime import datetime, timezone
 from src.utils.db import get_db
 from src.utils.get_current_user import get_current_user
 from src.models.questions import Question
-from src.models.authentication import User
+from src.models.authentication import User, UserSession
+from src.models.multiplayer import MultiplayerRoom
 
 
 router = APIRouter(prefix="/multiplayer", tags=["multiplayer"])
@@ -298,10 +299,22 @@ async def leave_room(  # Make it async
 async def websocket_endpoint(
     websocket: WebSocket,
     room_id: int,
-    current_user: User = Depends(get_current_user),
+    # current_user: User = Depends(get_current_user),
+    token: str = Query(None),  # ← ADD THIS LINE
     # user_id: int,  # This would normally come from JWT token in query params
     db: Session = Depends(get_db)
 ):
+    # Add token validation at the start of the function
+    if not token:
+        await websocket.close(code=4001, reason="Authentication required")
+        return
+
+    # Validate token and get user
+    current_user = await get_websocket_user(token, db)
+    if not current_user:
+        await websocket.close(code=4001, reason="Invalid token")
+        return
+
     user_id = current_user.id
     await manager.connect(websocket, room_id, user_id)
 
@@ -474,3 +487,68 @@ def get_room_status(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get room status: {str(e)}")
+
+
+async def get_websocket_user(token: str, db: Session):
+    """Validate WebSocket token and return user"""
+    try:
+        # Find user session with the token
+        session = db.query(UserSession).filter(
+            UserSession.session_token == token,
+            UserSession.is_active
+        ).first()
+
+        if not session:
+            return None
+
+        # Get the user
+        user = db.query(User).filter(User.id == session.user_id).first()
+        return user
+
+    except Exception as e:
+        print(f"WebSocket auth error: {e}")
+        return None
+
+
+@router.put("/rooms/{room_id}/settings")
+async def update_room_settings(
+    room_id: int,
+    settings: RoomSettingsUpdate,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Get the room
+    room = db.query(MultiplayerRoom).filter(MultiplayerRoom.id == room_id).first()
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    # Verify user is the host
+    if room.host_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only host can update room settings")
+
+    # Verify room is still in waiting status
+    if room.status != "waiting":
+        raise HTTPException(status_code=400, detail="Cannot update settings for a room that has started")
+
+    # Update room settings
+    room.max_players = settings.max_players
+    if settings.category_id:
+        room.category_id = settings.category_id
+    room.difficulty_level = settings.difficulty_level
+    room.total_questions = settings.total_questions
+    room.time_per_question = settings.time_per_question
+    room.updated_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(room)
+
+    # Broadcast settings change to all participants via WebSocket
+    await manager.send_to_room(room_id, "room_settings_updated", {
+        "max_players": room.max_players,
+        "category_id": room.category_id,
+        "difficulty_level": room.difficulty_level,
+        "total_questions": room.total_questions,
+        "time_per_question": room.time_per_question
+    })
+
+    return {"message": "Room settings updated successfully"}
