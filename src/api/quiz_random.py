@@ -137,7 +137,8 @@ def random_quiz(request: StartQuizRequest, db: Session = Depends(get_db), curren
         "current_question": 0,
         "questions": questions_response,
         "timer_expires_at": timer_expires_at,
-        "message": f"Quiz started successfully! You have {request.total_questions} questions to answer."
+        "message": ""
+        # "message": f"Quiz started successfully! You have {request.total_questions} questions to answer."
     }
 
 

@@ -183,7 +183,8 @@ def start_category_quiz(request: StartCategoryQuizRequest, db: Session = Depends
         "difficulty_level": quiz_session.difficulty_level,
         "questions": questions_response,
         "timer_expires_at": timer_expires_at,
-        "message": f"Category quiz started successfully! You have {request.total_questions} questions from '{category.name}' category."
+        "message": ""
+        # "message": f"Category quiz started successfully! You have {request.total_questions} questions from '{category.name}' category."
     }
 
 

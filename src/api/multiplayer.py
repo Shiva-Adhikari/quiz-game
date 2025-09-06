@@ -8,8 +8,10 @@ from src.schemas.multiplayer import (
     RoomCreate, RoomResponse, RoomDetailResponse, JoinRoomRequest,
     PlayerReadyRequest, SubmitAnswerRequest, ParticipantResponse, RoomSettingsUpdate
 )
-# import src.utils.multiplayer.crud as crud
-from src.utils.multiplayer import crud as crud
+from src.utils.multiplayer.crud import (
+    _create_room, get_public_rooms, join_room, get_room_by_code, get_room_with_participants,
+    update_player_ready, start_game_session, submit_player_answer, _leave_room
+)
 from src.utils.multiplayer.websocket_manager import manager
 from src.utils.multiplayer.game_engine import MultiplayerGameEngine
 from typing import Dict
@@ -34,11 +36,12 @@ def create_room(
     db: Session = Depends(get_db)
 ):
     try:
-        room = crud.create_room(db, room_data, current_user.id)
+        room = _create_room(db, room_data, current_user.id)
         return room
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
+    except Exception as e:
+        print(f'Failed to create room: {e}')
         raise HTTPException(status_code=500, detail="Failed to create room")
 
 
@@ -49,7 +52,7 @@ def browse_rooms(
     db: Session = Depends(get_db)
 ):
     """Browse only public rooms (no password required)"""
-    rooms = crud.get_public_rooms(db, skip, limit)
+    rooms = get_public_rooms(db, skip, limit)
     return rooms
 
 
@@ -60,11 +63,11 @@ def join_room(
     db: Session = Depends(get_db)
 ):
     try:
-        participant = crud.join_room(
+        participant = join_room(
             db, join_data.room_code, current_user.id, join_data.password
         )
 
-        room = crud.get_room_by_code(db, join_data.room_code)
+        room = get_room_by_code(db, join_data.room_code)
 
         return {
             "message": "Successfully joined room",
@@ -85,7 +88,7 @@ def get_room_details(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    room_data = crud.get_room_with_participants(db, room_id)
+    room_data = get_room_with_participants(db, room_id)
     if not room_data:
         raise HTTPException(status_code=404, detail="Room not found")
 
@@ -103,7 +106,7 @@ async def set_ready_status(
     db: Session = Depends(get_db),
 ):
     try:
-        result = crud.update_player_ready(db, room_id, current_user.id, ready_data.is_ready)
+        result = update_player_ready(db, room_id, current_user.id, ready_data.is_ready)
 
         # Broadcast ready status to all players in room
         await manager.send_to_room(room_id, "player_ready_status", {
@@ -129,7 +132,7 @@ async def start_game(
 ):
     try:
         # Verify user is host
-        room_data = crud.get_room_with_participants(db, room_id)
+        room_data = get_room_with_participants(db, room_id)
         if not room_data:
             raise HTTPException(status_code=404, detail="Room not found")
 
@@ -167,7 +170,7 @@ async def start_game(
         question_ids = [q["id"] for q in mock_questions]
 
         # Create game session
-        game_session = crud.start_game_session(db, room_id, question_ids)
+        game_session = start_game_session(db, room_id, question_ids)
 
         # Create and start game engine
         game_engine = MultiplayerGameEngine(room_id, db)
@@ -198,7 +201,7 @@ async def submit_answer(  # Make it async
 ):
     try:
         # First, get the room to ensure it exists and is in progress
-        room_data = crud.get_room_with_participants(db, room_id)
+        room_data = get_room_with_participants(db, room_id)
         if not room_data:
             raise HTTPException(status_code=404, detail="Room not found")
 
@@ -223,7 +226,7 @@ async def submit_answer(  # Make it async
             raise HTTPException(status_code=400, detail="Invalid question ID")
 
         # Submit answer
-        result = crud.submit_player_answer(
+        result = submit_player_answer(
             db, room_id, current_user.id, answer, correct_answer, room.time_per_question
         )
 
@@ -259,7 +262,7 @@ async def leave_room(  # Make it async
 ):
     try:
         # Check if room exists
-        room_data = crud.get_room_with_participants(db, room_id)
+        room_data = get_room_with_participants(db, room_id)
         if not room_data:
             raise HTTPException(status_code=404, detail="Room not found")
 
@@ -274,7 +277,7 @@ async def leave_room(  # Make it async
             raise HTTPException(status_code=400, detail="You are not in this room")
 
         # Leave the room
-        participant = crud.leave_room(db, room_id, current_user.id)
+        participant = _leave_room(db, room_id, current_user.id)
         if not participant:
             raise HTTPException(status_code=400, detail="Could not leave room")
 
@@ -286,7 +289,7 @@ async def leave_room(  # Make it async
         })
 
         # Clean up game engine if room becomes empty
-        room_data_updated = crud.get_room_with_participants(db, room_id)
+        room_data_updated = get_room_with_participants(db, room_id)
         if room_data_updated and room_data_updated["room"].current_players == 0:
             if room_id in active_games:
                 # Cancel any ongoing game timers
@@ -381,7 +384,7 @@ async def websocket_endpoint(
         room_id_left, user_id_left = manager.disconnect(websocket)
         if room_id_left and user_id_left:
             # Handle player disconnect in database
-            crud.leave_room(db, room_id_left, user_id_left)
+            leave_room(db, room_id_left, user_id_left)
 
             # Notify others
             await manager.send_to_room(room_id_left, "player_disconnected", {
@@ -406,6 +409,8 @@ def generate_mock_questions(db: Session, total_questions: int, difficulty: str, 
         query = query.filter(Question.difficulty_level == difficulty)
 
     questions = query.order_by(func.random()).limit(total_questions).all()
+
+    print(f"Found {len(questions)} questions in database")
 
     return [{
         "id": q.id,
@@ -470,7 +475,7 @@ def get_room_status(
 ):
     """Get current room status for debugging"""
     try:
-        room_data = crud.get_room_with_participants(db, room_id)
+        room_data = get_room_with_participants(db, room_id)
         if not room_data:
             raise HTTPException(status_code=404, detail="Room not found")
 

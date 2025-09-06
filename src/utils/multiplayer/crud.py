@@ -8,7 +8,7 @@ import json
 from datetime import datetime, timezone
 
 
-def create_room(db: Session, room_data: RoomCreate, user_id: int):
+def _create_room(db: Session, room_data: RoomCreate, user_id: int):
     room_code = generate_room_code()
 
     # Ensure unique room code
@@ -44,7 +44,7 @@ def create_room(db: Session, room_data: RoomCreate, user_id: int):
         room_id=db_room.id,
         user_id=user_id,
         is_host=True,
-        is_ready=False
+        is_ready=True
     )
 
     db.add(host_participant)
@@ -341,7 +341,7 @@ def get_final_leaderboard(db: Session, room_id: int):
     return leaderboard
 
 
-def leave_room(db: Session, room_id: int, user_id: int):
+def _leave_room(db: Session, room_id: int, user_id: int):
     try:
         # Find the participant
         participant = db.query(RoomParticipant).filter(
