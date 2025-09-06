@@ -13,27 +13,50 @@ router = APIRouter(prefix="/profile", tags=["user_profile"])
 
 @router.get("/me", response_model=UserProfileResponse)
 def get_my_profile(
-    current_user: User = Depends(get_current_user), 
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     user_agent: Optional[str] = Header(None)
 ):
     """Get current user's complete profile"""
     try:
         profile = crud_profile.get_user_profile(db, current_user.id)
-
         if not profile:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Profile not found"
             )
 
-        # Add calculated fields
-        profile = format_profile_response(profile, db)
+        # Import your level system function
+        from src.utils.level_system import get_level_from_xp
 
-        # Log access for analytics (optional)
-        # is_mobile = user_agent and ('okhttp' in user_agent.lower() or 'android' in user_agent.lower() or 'ios' in user_agent.lower())
+        # Get level information
+        level_info = get_level_from_xp(db, profile.total_xp)
 
-        return profile
+        # Calculate progress within current level
+        current_xp_in_level = profile.total_xp - level_info["min_xp"]
+
+        # Format response with level data
+        formatted_profile = {
+            "id": profile.id,
+            "user_id": profile.user_id,
+            "display_name": profile.display_name,
+            "total_xp": profile.total_xp,
+            "current_level": level_info["level"],
+            "coins": profile.coins,
+            "total_games_played": profile.total_games_played,
+            "created_at": profile.created_at.isoformat() if profile.created_at else None,
+            "updated_at": profile.updated_at.isoformat() if profile.updated_at else None,
+            "level_info": {
+                "level": level_info["level"],
+                "level_name": level_info["level_name"],
+                "min_xp_required": level_info["min_xp"],
+                "max_xp_required": level_info["max_xp"],
+                "xp_progress": current_xp_in_level,
+                "xp_needed_for_next": level_info["xp_to_next_level"]
+            }
+        }
+
+        return formatted_profile
 
     except HTTPException:
         raise
