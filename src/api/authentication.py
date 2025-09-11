@@ -183,7 +183,6 @@ def login(
 
     # Detect if mobile app (you can customize this detection)
     is_mobile_app = user_agent and ('okhttp' in user_agent.lower() or 'android' in user_agent.lower() or 'ios' in user_agent.lower())
-    print(f'\n\n\ntype of is_mobile: {type(is_mobile_app)} and value: {is_mobile_app}\n\n')
 
     new_session = UserSession(
         user_id=user_table.id,
@@ -210,9 +209,6 @@ def login(
             max_age=7 * 24 * 60 * 60  # 7 days
         )
     # '''
-
-    # response
-    # response.set_cookie(key='session_id', value=session_id, httponly=True)
 
     # Response
     login_response = LoginResponse(

@@ -31,27 +31,6 @@ class Category(Base):
 
     questions: Mapped[List['Question']] = relationship('Question', back_populates='category')
 
-    # quiz_sessions: Mapped[list["QuizSession"]] = relationship(back_populates="category")
-
-
-'''
-    # quiz_sessions = relationship("QuizSession", back_populates="category")
-
-    # quiz_sessions: Mapped[List["QuizSession"]] = relationship(
-        # "QuizSession", back_populates="category")
-    # user_answers: Mapped[List["UserAnswer"]] = relationship(
-        # "UserAnswer", back_populates="question")
-
-    # quiz_configurations: Mapped[list['QuizConfiguration']] = relationship(
-    #     'QuizConfiguration', back_populates='categories')
-    # active_quiz_sessions: Mapped[List['ActiveQuizSession']] = relationship(
-    #     'ActiveQuizSession', back_populates='categories')
-
-    # def __repr__(self) -> str:
-    #     return f'<Category(id={self.id}, name={self.name}, ' \
-    #             f'difficulty={self.difficulty_multiplier})>'
-'''
-
 
 class Question(Base):
     __tablename__ = 'questions'
@@ -61,9 +40,8 @@ class Question(Base):
         Integer, ForeignKey('categories.id', ondelete='CASCADE'), index=True)
     question_text: Mapped[str] = mapped_column(String(500), nullable=False)
     difficulty_level: Mapped[DifficultyLevel] = mapped_column(
-        SQLEnum(DifficultyLevel), nullable=False, index=True,
-        default=DifficultyLevel.EASY)
-    correct_answer: Mapped[str] = mapped_column(String(50), nullable=False)
+        SQLEnum(DifficultyLevel), nullable=False, index=True)
+    correct_answer: Mapped[str] = mapped_column(String(1), nullable=False)
     option_a: Mapped[str] = mapped_column(String(50), nullable=False)
     option_b: Mapped[str] = mapped_column(String(50), nullable=False)
     option_c: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -79,19 +57,9 @@ class Question(Base):
 
     # Relationships
     quiz_sessions: Mapped[list['QuizSession']] = relationship(
-        'QuizSession', 
+        'QuizSession',
         secondary='quiz_session_questions',  # ← ADDED secondary table
         back_populates='questions'
     )
 
-
-'''
-    # question_histories: Mapped[List['QuestionHistory']] = relationship(
-    #     'QuestionHistory', back_populates='questions')
-
-    # def __repr__(self) -> str:
-    #     return f'<Question(id={self.id}, ' \
-    #             f'category_id={self.category_id}, ' \
-    #             f'difficulty={self.difficulty_level})>'
-'''
 # /

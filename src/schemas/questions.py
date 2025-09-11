@@ -1,9 +1,9 @@
 # Standard library imports
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 # Local imports
-from src.models.questions import DifficultyLevel
+from src.utils.enums import DifficultyLevel
 
 
 class CategoryCreate(BaseModel):
@@ -17,12 +17,24 @@ class CategoryCreate(BaseModel):
 class QuestionCreate(BaseModel):
     question_text: str = Field(..., min_length=1, max_length=500, description='Question')
     difficulty_level: DifficultyLevel = Field(..., description='Question difficulty level')
-    correct_answer: str = Field(..., min_length=1, max_length=50, description='Correct Answer')
+    correct_answer: str = Field(..., min_length=1, max_length=1, description='Correct Answer')
     option_a: str = Field(..., min_length=1, max_length=50, description='Option A')
     option_b: str = Field(..., min_length=1, max_length=50, description='Option B')
     option_c: str = Field(..., min_length=1, max_length=50, description='Option C')
     option_d: str = Field(..., min_length=1, max_length=50, description='Option D')
     is_active: bool = Field(default=True, description='Whether the question is active')
+
+    @validator('difficulty_level')
+    def validate_difficulty(cls, v):
+        if v not in ['easy', 'medium', 'hard']:
+            raise ValueError('Difficulty must be easy, medium, or hard')
+        return v
+
+    @validator('correct_answer')
+    def validate_correct_answer(cls, v):
+        if v not in ['a', 'b', 'c', 'd']:
+            raise ValueError('Correct answer must be a, b, c, or d')
+        return v
 
 
 class CategoryUpdate(BaseModel):

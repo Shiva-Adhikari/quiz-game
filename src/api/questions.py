@@ -29,8 +29,8 @@ def category_create(category_data: CategoryCreate, db: Session = Depends(get_db)
         raise HTTPException(status_code=401, detail='Category already present')
 
     new_category = Category(
-        name=category_data.name,
-        description=category_data.description,
+        name=category_data.name.lower(),
+        description=category_data.description.lower(),
         difficulty_multiplier=category_data.difficulty_multiplier,
         is_active=category_data.is_active
     )
@@ -77,8 +77,8 @@ def category_create_bulk(categories_data: List[CategoryCreate], db: Session = De
 
     new_category = [
         Category(
-            name=category_data.name,
-            description=category_data.description,
+            name=category_data.name.lower(),
+            description=category_data.description.lower(),
             difficulty_multiplier=category_data.difficulty_multiplier,
             is_active=category_data.is_active
         ) for category_data in categories_data
@@ -95,6 +95,7 @@ def category_create_bulk(categories_data: List[CategoryCreate], db: Session = De
         'categories_created': len(new_category),
         'questions': [
             {
+                'id': c.id,
                 'name': c.name,
                 'description': c.description,
                 'difficulty_multiplier': c.difficulty_multiplier,
@@ -154,8 +155,8 @@ def get_categories(
             "categories": [
                 {
                     "id": cat.id,
-                    "name": cat.name,
-                    "description": cat.description,
+                    "name": cat.name.capitalize(),
+                    "description": cat.description.capitalize(),
                     "difficulty_multiplier": cat.difficulty_multiplier,
                     "is_active": cat.is_active,
                     "created_at": cat.created_at,
@@ -186,8 +187,8 @@ def get_category(category_id: int, db: Session = Depends(get_db)):
         "message": "Category retrieved successfully",
         "category": {
             "id": category.id,
-            "name": category.name,
-            "description": category.description,
+            "name": category.name.capitalize(),
+            "description": category.description.capitalize(),
             "difficulty_multiplier": category.difficulty_multiplier,
             "is_active": category.is_active,
             "created_at": category.created_at,
@@ -230,8 +231,8 @@ def update_category(category_id: int, category_data: CategoryCreate, db: Session
         "message": "Category updated successfully",
         "category": {
             "id": category.id,
-            "name": category.name,
-            "description": category.description,
+            "name": category.name.lower(),
+            "description": category.description.lower(),
             "difficulty_multiplier": category.difficulty_multiplier,
             "is_active": category.is_active,
             "updated_at": category.updated_at
@@ -308,12 +309,13 @@ def question_create(category_id: int, question_data: QuestionCreate, db: Session
 
     new_question = Question(
         category_id=category_id,
-        question_text=question_data.question_text,
-        correct_answer=question_data.correct_answer,
-        option_a=question_data.option_a,
-        option_b=question_data.option_b,
-        option_c=question_data.option_c,
-        option_d=question_data.option_d,
+        question_text=question_data.question_text.lower(),
+        difficulty_level=question_data.difficulty_level,
+        correct_answer=question_data.correct_answer.lower(),
+        option_a=question_data.option_a.lower(),
+        option_b=question_data.option_b.lower(),
+        option_c=question_data.option_c.lower(),
+        option_d=question_data.option_d.lower(),
         is_active=question_data.is_active
     )
 
@@ -327,6 +329,7 @@ def question_create(category_id: int, question_data: QuestionCreate, db: Session
             'id': new_question.id,
             'category_id': new_question.category_id,
             'question_text': new_question.question_text,
+            'difficulty_level': new_question.difficulty_level,
             'correct_answer': new_question.correct_answer,
             'is_active': new_question.is_active,
             'created_at': new_question.created_at
@@ -346,12 +349,13 @@ def question_create_bulk(category_id: int, questions_data: List[QuestionCreate],
     new_questions = [
         Question(
             category_id=category_id,
-            question_text=question_data.question_text,
-            correct_answer=question_data.correct_answer,
-            option_a=question_data.option_a,
-            option_b=question_data.option_b,
-            option_c=question_data.option_c,
-            option_d=question_data.option_d,
+            question_text=question_data.question_text.lower(),
+            difficulty_level=question_data.difficulty_level,
+            correct_answer=question_data.correct_answer.lower(),
+            option_a=question_data.option_a.lower(),
+            option_b=question_data.option_b.lower(),
+            option_c=question_data.option_c.lower(),
+            option_d=question_data.option_d.lower(),
             is_active=question_data.is_active
         ) for question_data in questions_data
     ]
@@ -445,13 +449,13 @@ def get_category_questions(
             "questions": [
                 {
                     "id": q.id,
-                    "question_text": q.question_text,
+                    "question_text": q.question_text.capitalize(),
                     "difficulty_level": q.difficulty_level.value,
-                    "correct_answer": q.correct_answer,
-                    "option_a": q.option_a,
-                    "option_b": q.option_b,
-                    "option_c": q.option_c,
-                    "option_d": q.option_d,
+                    "correct_answer": q.correct_answer.capitalize(),
+                    "option_a": q.option_a.capitalize(),
+                    "option_b": q.option_b.capitalize(),
+                    "option_c": q.option_c.capitalize(),
+                    "option_d": q.option_d.capitalize(),
                     "is_active": q.is_active,
                     "created_at": q.created_at
                 } for q in questions
@@ -481,14 +485,14 @@ def get_question(question_id: int, db: Session = Depends(get_db)):
         "question": {
             "id": question.id,
             "category_id": question.category_id,
-            "category_name": question.category.name,
-            "question_text": question.question_text,
+            "category_name": question.category.name.capitalize(),
+            "question_text": question.question_text.capitalize(),
             "difficulty_level": question.difficulty_level.value,
-            "correct_answer": question.correct_answer,
-            "option_a": question.option_a,
-            "option_b": question.option_b,
-            "option_c": question.option_c,
-            "option_d": question.option_d,
+            "correct_answer": question.correct_answer.capitalize(),
+            "option_a": question.option_a.capitalize(),
+            "option_b": question.option_b.capitalize(),
+            "option_c": question.option_c.capitalize(),
+            "option_d": question.option_d.capitalize(),
             "is_active": question.is_active,
             "created_at": question.created_at,
             "updated_at": question.updated_at
@@ -509,13 +513,13 @@ def update_question(question_id: int, question_data: QuestionCreate, db: Session
         raise HTTPException(status_code=404, detail='Question not found')
 
     # Update fields
-    question.question_text = question_data.question_text
+    question.question_text = question_data.question_text.lower()
     question.difficulty_level = question_data.difficulty_level
-    question.correct_answer = question_data.correct_answer
-    question.option_a = question_data.option_a
-    question.option_b = question_data.option_b
-    question.option_c = question_data.option_c
-    question.option_d = question_data.option_d
+    question.correct_answer = question_data.correct_answer.lower()
+    question.option_a = question_data.option_a.lower()
+    question.option_b = question_data.option_b.lower()
+    question.option_c = question_data.option_c.lower()
+    question.option_d = question_data.option_d.lower()
     question.is_active = question_data.is_active
 
     db.commit()
