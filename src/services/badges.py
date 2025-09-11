@@ -1,5 +1,5 @@
 from sqlalchemy.orm import selectinload
-from sqlalchemy import select, and_
+from sqlalchemy import select
 from typing import List, Optional, Dict, Any, Tuple
 from src.models.badges import Badge, UserBadge
 from src.models.quiz_session import QuizSession  # Assuming this exists
@@ -429,7 +429,7 @@ class BadgeService:
             selectinload(UserBadge.badge)
         ).filter(
             UserBadge.user_id == user_id,
-            UserBadge.notification_sent == False
+            UserBadge.notification_sent
         ).all()
         return unnotified_badges
 

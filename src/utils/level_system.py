@@ -55,11 +55,11 @@ def get_level_from_xp(db: Session, total_xp: int) -> dict:
         LevelSystem.min_xp_required <= total_xp,
         LevelSystem.max_xp_required >= total_xp
     ).first()
-    
+
     if not level:
         # Fallback to highest level if XP exceeds max
         level = db.query(LevelSystem).order_by(LevelSystem.level.desc()).first()
-    
+
     return {
         "level": level.level,
         "level_name": level.level_name,

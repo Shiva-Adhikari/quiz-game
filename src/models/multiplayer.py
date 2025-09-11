@@ -9,7 +9,7 @@ from src.core.database import Base
 
 class MultiplayerRoom(Base):
     __tablename__ = "multiplayer_rooms"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     room_code: Mapped[str] = mapped_column(String(10), unique=True, index=True)
     room_name: Mapped[str] = mapped_column(String(100))
@@ -25,7 +25,7 @@ class MultiplayerRoom(Base):
     status: Mapped[str] = mapped_column(String(20), default="waiting")  # waiting, in_progress, finished
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
+
     # Relationships
     participants: Mapped[List["RoomParticipant"]] = relationship("RoomParticipant", back_populates="room")
     game_sessions: Mapped[List["GameSession"]] = relationship("GameSession", back_populates="room")
@@ -33,7 +33,7 @@ class MultiplayerRoom(Base):
 
 class RoomParticipant(Base):
     __tablename__ = "room_participants"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     room_id: Mapped[int] = mapped_column(ForeignKey("multiplayer_rooms.id"))
     user_id: Mapped[int] = mapped_column(Integer)  # ForeignKey to User
@@ -42,13 +42,13 @@ class RoomParticipant(Base):
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     left_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    
+
     # Game stats
     total_score: Mapped[int] = mapped_column(Integer, default=0)
     correct_answers: Mapped[int] = mapped_column(Integer, default=0)
     wrong_answers: Mapped[int] = mapped_column(Integer, default=0)
     average_time: Mapped[float] = mapped_column(Float, default=0.0)
-    
+
     # Relationships
     room: Mapped["MultiplayerRoom"] = relationship("MultiplayerRoom", back_populates="participants")
     answers: Mapped[List["PlayerAnswer"]] = relationship("PlayerAnswer", back_populates="participant")
@@ -56,17 +56,17 @@ class RoomParticipant(Base):
 
 class GameSession(Base):
     __tablename__ = "game_sessions"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     room_id: Mapped[int] = mapped_column(ForeignKey("multiplayer_rooms.id"))
     current_question_index: Mapped[int] = mapped_column(Integer, default=0)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active")  # active, finished
-    
+
     # Question management
     selected_questions: Mapped[str] = mapped_column(Text)  # JSON string of question IDs
-    
+
     # Relationships
     room: Mapped["MultiplayerRoom"] = relationship("MultiplayerRoom", back_populates="game_sessions")
     answers: Mapped[List["PlayerAnswer"]] = relationship("PlayerAnswer", back_populates="game_session")
@@ -74,7 +74,7 @@ class GameSession(Base):
 
 class PlayerAnswer(Base):
     __tablename__ = "player_answers"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     game_session_id: Mapped[int] = mapped_column(ForeignKey("game_sessions.id"))
     participant_id: Mapped[int] = mapped_column(ForeignKey("room_participants.id"))
@@ -84,7 +84,7 @@ class PlayerAnswer(Base):
     time_taken: Mapped[float] = mapped_column(Float)  # seconds
     score_earned: Mapped[int] = mapped_column(Integer, default=0)
     answered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    
+
     # Relationships
     game_session: Mapped["GameSession"] = relationship("GameSession", back_populates="answers")
     participant: Mapped["RoomParticipant"] = relationship("RoomParticipant", back_populates="answers")

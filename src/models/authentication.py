@@ -75,7 +75,7 @@ class UserSession(Base):
     session_token: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     ip_address: Mapped[Optional[str]] = mapped_column(String(45))
     user_agent: Mapped[Optional[str]] = mapped_column(String)
-    is_mobile: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    is_mobile: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     device_id: Mapped[Optional[str]] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(

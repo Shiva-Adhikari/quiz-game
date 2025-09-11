@@ -9,7 +9,7 @@ from src.schemas.multiplayer import (
     PlayerReadyRequest, SubmitAnswerRequest, ParticipantResponse, RoomSettingsUpdate
 )
 from src.utils.multiplayer.crud import (
-    _create_room, get_public_rooms, join_room, get_room_by_code, get_room_with_participants,
+    _create_room, get_public_rooms, _join_room, get_room_by_code, get_room_with_participants,
     update_player_ready, start_game_session, submit_player_answer, _leave_room
 )
 from src.utils.multiplayer.websocket_manager import manager
@@ -63,7 +63,7 @@ def join_room(
     db: Session = Depends(get_db)
 ):
     try:
-        participant = join_room(
+        participant = _join_room(
             db, join_data.room_code, current_user.id, join_data.password
         )
 

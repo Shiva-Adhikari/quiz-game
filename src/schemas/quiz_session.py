@@ -7,10 +7,7 @@ from pydantic import (
 from datetime import datetime
 
 # Local imports
-from src.utils.enums import (
-    SessionType, DifficultyLevel,
-    # SessionStatus
-)
+# from src.utils.enums import SessionType, DifficultyLevel, SessionStatus
 
 
 # class StartQuizRequest(BaseModel):

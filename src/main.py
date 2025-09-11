@@ -36,9 +36,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get('/')
 def root():
     return {'message': 'Successfully running...', 'status': 'good'}
+
 
 @app.get("/favicon.ico")
 async def favicon():

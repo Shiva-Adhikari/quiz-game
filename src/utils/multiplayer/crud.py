@@ -39,6 +39,8 @@ def _create_room(db: Session, room_data: RoomCreate, user_id: int):
     db.add(db_room)
     db.flush()
 
+    print(f'db_room: {db_room}')
+
     # Add host as participant
     host_participant = RoomParticipant(
         room_id=db_room.id,
@@ -54,7 +56,7 @@ def _create_room(db: Session, room_data: RoomCreate, user_id: int):
     return db_room
 
 
-def join_room(db: Session, room_code: str, user_id: int, password: Optional[str] = None):
+def _join_room(db: Session, room_code: str, user_id: int, password: Optional[str] = None):
     room = db.query(MultiplayerRoom).filter(
         and_(
             MultiplayerRoom.room_code == room_code,

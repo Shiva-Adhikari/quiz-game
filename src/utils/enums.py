@@ -42,28 +42,3 @@ class ChallengeStatus(str, Enum):
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     FAILED = "failed"
-
-# ##################################################
-
-'''
-class AnswerOption(str, Enum):
-    A = "A"
-    B = "B"
-    C = "C"
-    D = "D"
-
-
-class RoomStatus(str, Enum):
-    STARTING = 'starting'
-    ACTIVE = 'active'
-    WAITING = 'waiting'
-    FINISHED = 'finished'
-    CANCELLED = 'cancelled'
-
-
-class RoomType(str, Enum):
-    SYSTEM_CREATED = 'system_created'
-    USER_CREATED = 'user_created'
-    TOURNAMENT = 'tournament'
-    PRIVATE = 'private'
-'''
