@@ -19,7 +19,7 @@ router = APIRouter(prefix='/question', tags=['Question'])
 # CREATE CATEGORIES
 # ============================
 
-@router.post('/category')
+@router.post('/category/insert')
 def category_create(category_data: CategoryCreate, db: Session = Depends(get_db)) -> dict:
     """ insert category in database, one by one
     """
@@ -53,7 +53,7 @@ def category_create(category_data: CategoryCreate, db: Session = Depends(get_db)
     }
 
 
-@router.post('/categories/bulk')
+@router.post('/categories/insert/bulk')
 def category_create_bulk(categories_data: List[CategoryCreate], db: Session = Depends(get_db)):
     """ insert bulk categories
     """
@@ -110,7 +110,7 @@ def category_create_bulk(categories_data: List[CategoryCreate], db: Session = De
 # READ CATEGORIES
 # ============================
 
-@router.get('/categories')
+@router.get('/categories/read')
 def get_categories(
     search: Optional[str] = Query(None, description="Search in category name or description"),
     page: int = Query(1, ge=1, description="Page number"),
@@ -175,7 +175,7 @@ def get_categories(
     }
 
 
-@router.get('/category/{category_id}')
+@router.get('/category/read/{category_id}')
 def get_category(category_id: int, db: Session = Depends(get_db)):
     """Get single category by ID"""
 
@@ -202,7 +202,7 @@ def get_category(category_id: int, db: Session = Depends(get_db)):
 # UPDATE CATEGORIES
 # ============================
 
-@router.put('/category/{category_id}')
+@router.put('/category/update/{category_id}')
 def update_category(category_id: int, category_data: CategoryCreate, db: Session = Depends(get_db)):
     """Update single category"""
 
@@ -244,7 +244,7 @@ def update_category(category_id: int, category_data: CategoryCreate, db: Session
 # DELETE CATEGORIES
 # ============================
 
-@router.delete('/category/{category_id}')
+@router.delete('/category/delete/{category_id}')
 def delete_category(category_id: int, db: Session = Depends(get_db)):
     """Delete single category (and all its questions due to CASCADE)"""
 
@@ -265,7 +265,7 @@ def delete_category(category_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.delete('/categories/bulk')
+@router.delete('/categories/delete/bulk')
 def delete_categories_bulk(category_ids: List[int], db: Session = Depends(get_db)):
     """Delete multiple categories"""
 
@@ -298,7 +298,7 @@ def delete_categories_bulk(category_ids: List[int], db: Session = Depends(get_db
 # CREATE QUESTIONS
 # ============================
 
-@router.post('/category/{category_id}/question')
+@router.post('/question/insert/{category_id}')
 def question_create(category_id: int, question_data: QuestionCreate, db: Session = Depends(get_db)) -> dict:
     """ insert question based on category id, one by one
     """
@@ -337,7 +337,7 @@ def question_create(category_id: int, question_data: QuestionCreate, db: Session
     }
 
 
-@router.post('/category/{category_id}/questions/bulk')
+@router.post('/questions/insert/bulk/{category_id}')
 def question_create_bulk(category_id: int, questions_data: List[QuestionCreate], db: Session = Depends(get_db)):
     """ insert bulk questions
     """
@@ -389,7 +389,7 @@ def question_create_bulk(category_id: int, questions_data: List[QuestionCreate],
 # READ QUESTIONS
 # ============================
 
-@router.get('/category/{category_id}/questions')
+@router.get('/questions/read/bulk/{category_id}')
 def get_category_questions(
     category_id: int,
     search: Optional[str] = Query(None, description="Search in question text"),
@@ -472,7 +472,7 @@ def get_category_questions(
     }
 
 
-@router.get('/questions/{question_id}')
+@router.get('/questions/read/{question_id}')
 def get_question(question_id: int, db: Session = Depends(get_db)):
     """Get single question by ID"""
 
@@ -504,7 +504,7 @@ def get_question(question_id: int, db: Session = Depends(get_db)):
 # UPDATE QUESTIONS
 # ============================
 
-@router.put('/question/{question_id}')
+@router.put('/question/update/{question_id}')
 def update_question(question_id: int, question_data: QuestionCreate, db: Session = Depends(get_db)):
     """Update single question"""
 
@@ -547,7 +547,7 @@ def update_question(question_id: int, question_data: QuestionCreate, db: Session
 # DELETE QUESTIONS
 # ============================
 
-@router.delete('/question/{question_id}')
+@router.delete('/question/delete/{question_id}')
 def delete_question(question_id: int, db: Session = Depends(get_db)):
     """Delete single question"""
 
@@ -567,7 +567,7 @@ def delete_question(question_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.delete('/questions/bulk')
+@router.delete('/questions/delete/bulk')
 def delete_questions_bulk(question_ids: List[int], db: Session = Depends(get_db)):
     """Delete multiple questions"""
 
