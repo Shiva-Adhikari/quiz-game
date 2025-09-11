@@ -3,9 +3,9 @@
 A comprehensive quiz application backend built with **FastAPI**, **PostgreSQL**, and modern Python technologies. Perfect for educational platforms, competitive quizzing, and gamified learning experiences.
 
 ## 🚀 Live Demo
-- **API Documentation:** [Coming Soon - Deploy Link]
-- **Interactive Swagger UI:** [API_URL/docs]
-- **ReDoc Documentation:** [API_URL/redoc]
+- **API Documentation:** [https://quiz-game-1-9tz8.onrender.com]
+- **Interactive Swagger UI:** [https://quiz-game-1-9tz8.onrender.com/docs]
+- **ReDoc Documentation:** [https://quiz-game-1-9tz8.onrender.com/redoc]
 
 ## ✨ Features
 
