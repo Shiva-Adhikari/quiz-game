@@ -77,14 +77,6 @@ class QuizSession(Base):
     quiz_session_question: Mapped[list['QuizSessionQuestion']] = relationship("QuizSessionQuestion", back_populates="question")
     quiz_session_question: Mapped[list['QuizSessionQuestion']] = relationship("QuizSessionQuestion", back_populates="quiz_session")   # , cascade="all, delete-orphan"
 
-    '''
-    # from src.models.questions import Question
-    # questions: Mapped['Question'] = relationship(
-        # "Question", back_populates="quiz_session")
-    # user: Mapped['User'] = relationship("User", back_populates="quiz_sessions")
-    # answers: Mapped[list["UserAnswer"]] = relationship("UserAnswer", back_populates="quiz_session")    # cascade="all, delete-orphan"
-    '''
-
     @property
     def score_percentage(self) -> float:
         """Calculate score percentage"""
@@ -174,12 +166,6 @@ class UserAnswer(Base):
     # Timing
     time_taken_seconds: Mapped[int] = mapped_column(Integer, default=0)
     answered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-    '''
-    # Relationships
-    # quiz_session = relationship("QuizSession", back_populates="answers")
-    # question = relationship("Question", back_populates="user_answers")
-    '''
 
     # Unique constraint: One answer per question per session
     __table_args__ = (

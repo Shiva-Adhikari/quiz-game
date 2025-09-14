@@ -39,8 +39,6 @@ def _create_room(db: Session, room_data: RoomCreate, user_id: int):
     db.add(db_room)
     db.flush()
 
-    print(f'db_room: {db_room}')
-
     # Add host as participant
     host_participant = RoomParticipant(
         room_id=db_room.id,

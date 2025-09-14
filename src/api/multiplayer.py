@@ -1,26 +1,29 @@
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status, Query
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from typing import List
+# === Standard library imports ===
 import json
+from typing import List, Dict
+from datetime import datetime, timezone
 
+# === Third-party imports ===
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query
+
+# === Local imports ===
+from src.utils.db import get_db
+from src.models.questions import Question
+from src.models.multiplayer import MultiplayerRoom
+from src.utils.get_current_user import get_current_user
+from src.models.authentication import User, UserSession
+from src.utils.multiplayer.websocket_manager import manager
+from src.utils.multiplayer.game_engine import MultiplayerGameEngine
 from src.schemas.multiplayer import (
-    RoomCreate, RoomResponse, RoomDetailResponse, JoinRoomRequest,
-    PlayerReadyRequest, SubmitAnswerRequest, ParticipantResponse, RoomSettingsUpdate
+    RoomCreate, RoomResponse, RoomDetailResponse, JoinRoomRequest, PlayerReadyRequest,
+    SubmitAnswerRequest, ParticipantResponse, RoomSettingsUpdate
 )
 from src.utils.multiplayer.crud import (
     _create_room, get_public_rooms, _join_room, get_room_by_code, get_room_with_participants,
     update_player_ready, start_game_session, submit_player_answer, _leave_room
 )
-from src.utils.multiplayer.websocket_manager import manager
-from src.utils.multiplayer.game_engine import MultiplayerGameEngine
-from typing import Dict
-from datetime import datetime, timezone
-from src.utils.db import get_db
-from src.utils.get_current_user import get_current_user
-from src.models.questions import Question
-from src.models.authentication import User, UserSession
-from src.models.multiplayer import MultiplayerRoom
 
 
 router = APIRouter(prefix="/multiplayer", tags=["multiplayer"])
@@ -88,6 +91,7 @@ def get_room_details(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    """Get room by room id"""
     room_data = get_room_with_participants(db, room_id)
     if not room_data:
         raise HTTPException(status_code=404, detail="Room not found")
@@ -105,6 +109,7 @@ async def set_ready_status(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Ready before start game"""
     try:
         result = update_player_ready(db, room_id, current_user.id, ready_data.is_ready)
 
@@ -153,7 +158,7 @@ async def start_game(
         '''
 
         '''participants = room_data["participants"]
-        
+
         # === Require readiness only from non-host players ===
         all_ready = all(
             (p.is_ready if not p.is_host else True) for p in participants
@@ -374,7 +379,7 @@ async def websocket_endpoint(
                 }))
             except Exception as e:
                 await websocket.send_text(json.dumps({
-                    "type": "error", 
+                    "type": "error",
                     "message": f"Error: {str(e)}"
                 }))
 
@@ -497,7 +502,7 @@ def get_room_status(
                 } for p in participants
             ],
             "user_in_room": any(
-                p.user_id == current_user.id and p.is_active 
+                p.user_id == current_user.id and p.is_active
                 for p in participants
             )
         }

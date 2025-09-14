@@ -71,7 +71,7 @@ def get_badge(
     badge = badge_service.get_badge_by_id(badge_id)
     if not badge:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Badge not found"
         )
     return badge

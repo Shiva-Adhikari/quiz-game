@@ -1,8 +1,9 @@
-from sqlalchemy import Integer, String, DateTime, Boolean, Float, ForeignKey, Text, func
+from sqlalchemy import Integer, String, DateTime, Boolean, Float, ForeignKey, Text, func, Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 from typing import List, Optional
 from src.core.database import Base
+from src.utils.enums import DifficultyLevel
 # from src.models.questions import Category
 # from src.models.authentication import User
 
@@ -17,7 +18,7 @@ class MultiplayerRoom(Base):
     max_players: Mapped[int] = mapped_column(Integer, default=4)
     current_players: Mapped[int] = mapped_column(Integer, default=0)
     category_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey('categories.id'), nullable=True, index=True)  # ForeignKey to Category
-    difficulty_level: Mapped[str] = mapped_column(String(20), default="medium")
+    difficulty_level: Mapped[DifficultyLevel] = mapped_column(SQLEnum[DifficultyLevel], nullable=False, index=True)
     total_questions: Mapped[int] = mapped_column(Integer, default=10)
     time_per_question: Mapped[int] = mapped_column(Integer, default=30)
     is_public: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -35,8 +36,8 @@ class RoomParticipant(Base):
     __tablename__ = "room_participants"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    room_id: Mapped[int] = mapped_column(ForeignKey("multiplayer_rooms.id"))
-    user_id: Mapped[int] = mapped_column(Integer)  # ForeignKey to User
+    room_id: Mapped[int] = mapped_column(ForeignKey("multiplayer_rooms.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='Cascade'), nullable=False, index=True)  # ForeignKey to User
     is_ready: Mapped[bool] = mapped_column(Boolean, default=True)
     is_host: Mapped[bool] = mapped_column(Boolean, default=False)
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

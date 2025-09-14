@@ -175,7 +175,7 @@ def update_my_profile(
 
 @router.get("/me/rank")
 def get_my_rank(
-    current_user: User = Depends(get_current_user), 
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get current user's global rank"""

@@ -24,7 +24,7 @@ class MultiplayerGameEngine:
         self.questions = questions
         self.total_questions = len(questions)
         self.time_per_question = time_per_question
-    
+
         # Notify all players game is starting
         await manager.send_to_room(self.room_id, "game_starting", {
             "total_questions": self.total_questions,
@@ -68,7 +68,7 @@ class MultiplayerGameEngine:
             return False
 
         self.players_answered.add(user_id)
-        
+
         # Broadcast that player answered
         await manager.send_to_room(self.room_id, "player_answered", {
             "user_id": user_id,

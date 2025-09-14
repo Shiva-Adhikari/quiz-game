@@ -246,8 +246,8 @@ def submit_answer(request: SubmitAnswerRequest, db: Session = Depends(get_db), c
 
         quiz_session.xp_earned = rewards["xp_earned"]
         quiz_session.coins_earned = rewards["coins_earned"]
-        
-        user_profile.coins += quiz_session.coins_earned  
+
+        user_profile.coins += quiz_session.coins_earned
         user_profile.total_xp += quiz_session.xp_earned
         user_profile.total_games_played += 1
 
