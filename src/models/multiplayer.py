@@ -18,7 +18,7 @@ class MultiplayerRoom(Base):
     max_players: Mapped[int] = mapped_column(Integer, default=4)
     current_players: Mapped[int] = mapped_column(Integer, default=0)
     category_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey('categories.id'), nullable=True, index=True)  # ForeignKey to Category
-    difficulty_level: Mapped[DifficultyLevel] = mapped_column(SQLEnum[DifficultyLevel], nullable=False, index=True)
+    difficulty_level: Mapped[DifficultyLevel] = mapped_column(nullable=False, index=True)   # don't add 'SQLEnum[DifficultyLevel],' for now, this will create problem.
     total_questions: Mapped[int] = mapped_column(Integer, default=10)
     time_per_question: Mapped[int] = mapped_column(Integer, default=30)
     is_public: Mapped[bool] = mapped_column(Boolean, default=True)
