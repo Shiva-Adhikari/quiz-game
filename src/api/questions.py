@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 # Local imports
 from src.utils.db import get_db
+from src.utils.log import logger
 from src.models.questions import Category, Question
 from src.schemas.questions import CategoryCreate, QuestionCreate
 
@@ -29,8 +30,8 @@ def category_create(category_data: CategoryCreate, db: Session = Depends(get_db)
         raise HTTPException(status_code=401, detail='Category already present')
 
     new_category = Category(
-        name=category_data.name.lower(),
-        description=category_data.description.lower(),
+        name=category_data.name,
+        description=category_data.description,
         difficulty_multiplier=category_data.difficulty_multiplier,
         is_active=category_data.is_active
     )
@@ -77,8 +78,8 @@ def category_create_bulk(categories_data: List[CategoryCreate], db: Session = De
 
     new_category = [
         Category(
-            name=category_data.name.lower(),
-            description=category_data.description.lower(),
+            name=category_data.name,
+            description=category_data.description,
             difficulty_multiplier=category_data.difficulty_multiplier,
             is_active=category_data.is_active
         ) for category_data in categories_data
@@ -231,8 +232,8 @@ def update_category(category_id: int, category_data: CategoryCreate, db: Session
         "message": "Category updated successfully",
         "category": {
             "id": category.id,
-            "name": category.name.lower(),
-            "description": category.description.lower(),
+            "name": category.name,
+            "description": category.description,
             "difficulty_multiplier": category.difficulty_multiplier,
             "is_active": category.is_active,
             "updated_at": category.updated_at
@@ -307,15 +308,20 @@ def question_create(category_id: int, question_data: QuestionCreate, db: Session
     if not category:
         raise HTTPException(status_code=404, detail='Category not found')
 
+    # Check if question exists
+    is_question = db.query(Question).filter(Question.question_text == question_data.question_text).first()
+    if is_question:
+        raise HTTPException(status_code=400, detail='Question already exists')
+
     new_question = Question(
         category_id=category_id,
-        question_text=question_data.question_text.lower(),
+        question_text=question_data.question_text,
         difficulty_level=question_data.difficulty_level,
-        correct_answer=question_data.correct_answer.lower(),
-        option_a=question_data.option_a.lower(),
-        option_b=question_data.option_b.lower(),
-        option_c=question_data.option_c.lower(),
-        option_d=question_data.option_d.lower(),
+        correct_answer=question_data.correct_answer,
+        option_a=question_data.option_a,
+        option_b=question_data.option_b,
+        option_c=question_data.option_c,
+        option_d=question_data.option_d,
         is_active=question_data.is_active
     )
 
@@ -342,20 +348,45 @@ def question_create_bulk(category_id: int, questions_data: List[QuestionCreate],
     """ insert bulk questions
     """
 
+    # Check if category exists
     category = db.query(Category).filter(Category.id == category_id, Category.is_active).first()
     if not category:
         raise HTTPException(status_code=404, detail='Category not found')
 
+    # Check if question exists
+    all_questions = db.query(Question.question_text).all()
+    existing_questions = set()
+    for question in all_questions:
+        existing_questions.add(question.question_text)
+
+    # Find duplicates by checking each question
+    duplicate_questions = []
+    for question_data in questions_data:
+        if question_data.question_text in existing_questions:
+            duplicate_questions.append(question_data.question_text)
+
+    # Raise error if duplicate found
+    if duplicate_questions:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                'error': 'Questions already exists',
+                'duplicates': duplicate_questions,
+                'count': len(duplicate_questions)
+            }
+        )
+
+    # Save questions in database
     new_questions = [
         Question(
             category_id=category_id,
-            question_text=question_data.question_text.lower(),
+            question_text=question_data.question_text,
             difficulty_level=question_data.difficulty_level,
-            correct_answer=question_data.correct_answer.lower(),
-            option_a=question_data.option_a.lower(),
-            option_b=question_data.option_b.lower(),
-            option_c=question_data.option_c.lower(),
-            option_d=question_data.option_d.lower(),
+            correct_answer=question_data.correct_answer,
+            option_a=question_data.option_a,
+            option_b=question_data.option_b,
+            option_c=question_data.option_c,
+            option_d=question_data.option_d,
             is_active=question_data.is_active
         ) for question_data in questions_data
     ]
@@ -513,13 +544,13 @@ def update_question(question_id: int, question_data: QuestionCreate, db: Session
         raise HTTPException(status_code=404, detail='Question not found')
 
     # Update fields
-    question.question_text = question_data.question_text.lower()
+    question.question_text = question_data.question_text
     question.difficulty_level = question_data.difficulty_level
-    question.correct_answer = question_data.correct_answer.lower()
-    question.option_a = question_data.option_a.lower()
-    question.option_b = question_data.option_b.lower()
-    question.option_c = question_data.option_c.lower()
-    question.option_d = question_data.option_d.lower()
+    question.correct_answer = question_data.correct_answer
+    question.option_a = question_data.option_a
+    question.option_b = question_data.option_b
+    question.option_c = question_data.option_c
+    question.option_d = question_data.option_d
     question.is_active = question_data.is_active
 
     db.commit()

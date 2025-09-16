@@ -183,8 +183,8 @@ def start_category_quiz(request: StartCategoryQuizRequest, db: Session = Depends
         "difficulty_level": quiz_session.difficulty_level,
         "questions": questions_response,
         "timer_expires_at": timer_expires_at,
-        "message": ""
-        # "message": f"Category quiz started successfully! You have {request.total_questions} questions from '{category.name}' category."
+        # "message": ""
+        "message": f"Category quiz started successfully! You have {request.total_questions} questions from '{category.name}' category."
     }
 
 
@@ -408,7 +408,7 @@ def get_category_quiz_results(quiz_session_id: int, current_user: User = Depends
         answers_breakdown.append({
             'question_id': answer.question_id,
             'question_text': question.question_text,
-            'user_answer': answer.user_answer,
+            'user_answer': answer.user_answer.lower(),
             'correct_answer': question.correct_answer,
             'is_correct': answer.is_correct,
             'time_taken_seconds': answer.time_taken_seconds,

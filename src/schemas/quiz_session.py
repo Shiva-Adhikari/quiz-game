@@ -1,8 +1,7 @@
 # Standard library imports
 from typing import Optional, List
 from pydantic import (
-    BaseModel,
-    # Field
+    BaseModel, field_validator, Field
 )
 from datetime import datetime
 
@@ -20,10 +19,15 @@ from datetime import datetime
 
 class StartQuizRequest(BaseModel):
     category_id: Optional[int]
-    session_type: str
-    difficulty_level: str
+    # session_type: str
+    difficulty_level: str = Field(default='easy')
     total_questions: int
     time_limit_minutes: Optional[int]
+
+    @field_validator('difficulty_level', mode='before')
+    @classmethod
+    def convert_to_lowercase(cls, v):
+        return str(v).lower()
 
 
 class QuestionResponse(BaseModel):
@@ -50,7 +54,12 @@ class StartQuizResponse(BaseModel):
 class SubmitAnswerRequest(BaseModel):
     quiz_session_id: int
     question_id: int
-    user_answer: str  # 'A', 'B', 'C', or 'D'
+    user_answer: str = Field(..., min_length=1, max_length=1, description='Correct Answer')
+
+    @field_validator('user_answer', mode='before')
+    @classmethod
+    def convert_to_lowercase(cls, v):
+        return str(v).lower()
 
 
 class SubmitAnswerResponse(BaseModel):
@@ -82,4 +91,9 @@ class StartCategoryQuizRequest(BaseModel):
     category_id: int
     total_questions: int
     time_limit_minutes: Optional[int] = None
-    difficulty_level: Optional[str] = None  # 'easy', 'medium', 'hard', 'mixed'
+    difficulty_level: Optional[str] = Field(default='easy')
+
+    @field_validator('difficulty_level', mode='before')
+    @classmethod
+    def convert_to_lowercase(cls, v):
+        return str(v).lower()

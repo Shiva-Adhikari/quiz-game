@@ -1,6 +1,6 @@
 # Standard library imports
 from typing import Optional
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 # Local imports
 from src.utils.enums import DifficultyLevel
@@ -13,6 +13,11 @@ class CategoryCreate(BaseModel):
         default=1.0, ge=0.1, le=10.0, description='Set number according to difficult level')
     is_active: bool = Field(default=True, description='Whether the category is active')
 
+    @field_validator('name', 'description', mode='before')
+    @classmethod
+    def convert_to_lowercase(cls, v):
+        return str(v).lower()
+
 
 class QuestionCreate(BaseModel):
     question_text: str = Field(..., min_length=1, max_length=500, description='Question')
@@ -24,17 +29,26 @@ class QuestionCreate(BaseModel):
     option_d: str = Field(..., min_length=1, max_length=50, description='Option D')
     is_active: bool = Field(default=True, description='Whether the question is active')
 
-    @validator('difficulty_level')
+    @field_validator('difficulty_level', mode='before')
+    @classmethod
     def validate_difficulty(cls, v):
+        v = str(v).lower()
         if v not in ['easy', 'medium', 'hard']:
             raise ValueError('Difficulty must be easy, medium, or hard')
         return v
 
-    @validator('correct_answer')
+    @field_validator('correct_answer', mode='before')
+    @classmethod
     def validate_correct_answer(cls, v):
+        v = str(v).lower()
         if v not in ['a', 'b', 'c', 'd']:
             raise ValueError('Correct answer must be a, b, c, or d')
         return v
+
+    @field_validator('question_text', 'option_a', 'option_b', 'option_c', 'option_d', mode='before')
+    @classmethod
+    def convert_to_lowercase(cls, v):
+        return str(v).lower()
 
 
 class CategoryUpdate(BaseModel):
@@ -43,6 +57,11 @@ class CategoryUpdate(BaseModel):
     difficulty_multiplier: Optional[float] = Field(
         None, ge=0.1, le=10.0, description='Set number according to difficult level')
     is_active: Optional[bool] = Field(None, description='Whether the category is active')
+
+    @field_validator('name', 'description', mode='before')
+    @classmethod
+    def convert_to_lowercase(cls, v):
+        return str(v).lower()
 
 
 class QuestionUpdate(BaseModel):
@@ -54,6 +73,27 @@ class QuestionUpdate(BaseModel):
     option_c: Optional[str] = Field(None, min_length=1, max_length=50, description='Option C')
     option_d: Optional[str] = Field(None, min_length=1, max_length=50, description='Option D')
     is_active: Optional[bool] = Field(None, description='Whether the question is active')
+
+    @field_validator('difficulty_level', mode='before')
+    @classmethod
+    def validate_difficulty(cls, v):
+        v = str(v).lower()
+        if v not in ['easy', 'medium', 'hard']:
+            raise ValueError('Difficulty must be easy, medium, or hard')
+        return v
+
+    @field_validator('correct_answer', mode='before')
+    @classmethod
+    def validate_correct_answer(cls, v):
+        v = str(v).lower()
+        if v not in ['a', 'b', 'c', 'd']:
+            raise ValueError('Correct answer must be a, b, c, or d')
+        return v
+
+    @field_validator('question_text', 'option_a', 'option_b', 'option_c', 'option_d', mode='before')
+    @classmethod
+    def convert_to_lowercase(cls, v):
+        return str(v).lower()
 
 
 # Response schemas for better API documentation

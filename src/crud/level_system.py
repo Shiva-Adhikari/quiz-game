@@ -1,11 +1,16 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import select, update, delete
-from src.models.level_system import LevelSystem
-from src.schemas.level_system import LevelSystemCreate, LevelSystemUpdate
+# === Standard library imports ===
 from typing import Optional, List
 
+# === Third-party imports ===
+from sqlalchemy.orm import Session
+from sqlalchemy import select, update, delete
 
-def create_level(db: Session, level_data: LevelSystemCreate) -> LevelSystem:
+# === Local imports ===
+from src.models.level_system import LevelSystem
+from src.schemas.level_system import LevelSystemCreate, LevelSystemUpdate
+
+
+def _create_level(db: Session, level_data: LevelSystemCreate) -> LevelSystem:
     """Create a new level"""
     db_level = LevelSystem(**level_data.model_dump())
     db.add(db_level)
@@ -14,12 +19,12 @@ def create_level(db: Session, level_data: LevelSystemCreate) -> LevelSystem:
     return db_level
 
 
-def get_level_by_number(db: Session, level: int) -> Optional[LevelSystem]:
+def _get_level_by_number(db: Session, level: int) -> Optional[LevelSystem]:
     """Get level by level number"""
     return db.scalars(select(LevelSystem).where(LevelSystem.level == level)).first()
 
 
-def get_level_by_xp(db: Session, xp: int) -> Optional[LevelSystem]:
+def _get_level_by_xp(db: Session, xp: int) -> Optional[LevelSystem]:
     """Get level based on XP amount"""
     return db.scalars(
         select(LevelSystem)
@@ -28,12 +33,12 @@ def get_level_by_xp(db: Session, xp: int) -> Optional[LevelSystem]:
     ).first()
 
 
-def get_all_levels(db: Session) -> List[LevelSystem]:
+def _get_all_levels(db: Session) -> List[LevelSystem]:
     """Get all levels ordered by level number"""
     return db.scalars(select(LevelSystem).order_by(LevelSystem.level)).all()
 
 
-def get_levels_paginated(db: Session, skip: int = 0, limit: int = 100) -> List[LevelSystem]:
+def _get_levels_paginated(db: Session, skip: int = 0, limit: int = 100) -> List[LevelSystem]:
     """Get levels with pagination"""
     return db.scalars(
         select(LevelSystem)
@@ -43,11 +48,11 @@ def get_levels_paginated(db: Session, skip: int = 0, limit: int = 100) -> List[L
     ).all()
 
 
-def update_level(db: Session, level: int, level_update: LevelSystemUpdate) -> Optional[LevelSystem]:
+def _update_level(db: Session, level: int, level_update: LevelSystemUpdate) -> Optional[LevelSystem]:
     """Update level information"""
     update_data = level_update.model_dump(exclude_unset=True)
     if not update_data:
-        return get_level_by_number(db, level)
+        return _get_level_by_number(db, level)
 
     stmt = update(LevelSystem).where(LevelSystem.level == level).values(**update_data)
     result = db.execute(stmt)
@@ -56,10 +61,10 @@ def update_level(db: Session, level: int, level_update: LevelSystemUpdate) -> Op
         return None
 
     db.commit()
-    return get_level_by_number(db, level)
+    return _get_level_by_number(db, level)
 
 
-def delete_level(db: Session, level: int) -> bool:
+def _delete_level(db: Session, level: int) -> bool:
     """Delete a level"""
     stmt = delete(LevelSystem).where(LevelSystem.level == level)
     result = db.execute(stmt)

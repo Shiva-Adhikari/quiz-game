@@ -1,10 +1,13 @@
-from sqlalchemy.orm import Session
-from src.models.level_system import LevelSystem
-from src.crud.level_system import create_level
-from src.schemas.level_system import LevelSystemCreate
-from sqlalchemy import select
+# === Third-party imports ===
 from fastapi import Depends
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+# === Local imports ===
 from src.utils.db import get_db
+from src.crud.level_system import _create_level
+from src.models.level_system import LevelSystem
+from src.schemas.level_system import LevelSystemCreate
 
 
 def initialize_level_system(db: Session = Depends(get_db)):
@@ -39,7 +42,7 @@ def initialize_level_system(db: Session = Depends(get_db)):
     try:
         for level_data in default_levels:
             level_create = LevelSystemCreate(**level_data)
-            create_level(db, level_create)
+            _create_level(db, level_create)
 
         print(f"Successfully initialized {len(default_levels)} levels")
 

@@ -12,9 +12,10 @@ from fastapi import (
     Request, Header, Cookie
 )
 
-# === Local imports===
+# === Local imports ===
+from src.utils.log import logger
 from src.utils.db import get_db
-from src.utils.email_send import send_email
+# from src.utils.email_send import send_email
 from src.utils.generate_otp import generate_otp
 from src.utils.hash_password import hash_password, verify_password
 from src.models.authentication import (
@@ -50,6 +51,7 @@ def register(user: UserRegister, db: Session = Depends(get_db)) -> UserResponse:
 
     ''' # === block otp for sending in development ===
     # === send email ===
+    from src.utils.email_send import send_email
     sent_email = send_email(user.email, otp)
     if not sent_email:
         raise HTTPException(status_code=404, detail='Invalid email')

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 # Local imports
 from src.utils.db import get_db
+from src.utils.log import logger
 from src.utils.enums import SessionStatus
 from src.models.questions import Question
 from src.models.authentication import User
@@ -36,7 +37,7 @@ def random_quiz(request: StartQuizRequest, db: Session = Depends(get_db), curren
 
     if active_session:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail={
                 "message": "You have an active quiz session",
                 "active_session_id": active_session.id,
@@ -64,10 +65,10 @@ def random_quiz(request: StartQuizRequest, db: Session = Depends(get_db), curren
     questions = session.query(Question).offset(random_offset).limit(10).all()
 
     # # OR BOTH IS SAME
-    # questions = session.query(Question)\
-        # .offset(random_offset)\    # Skip first 'random_offset' rows
-        # .limit(10)\               # Take next 10 rows
-        # .all()
+    # Skip first 'random_offset' rows
+    # Take next 10 rows
+    # .all()    # GET ALL QUESTION
+    # questions = session.query(Question).offset(random_offset).limit(10).all()
     '''
 
     '''
@@ -137,8 +138,8 @@ def random_quiz(request: StartQuizRequest, db: Session = Depends(get_db), curren
         "current_question": 0,
         "questions": questions_response,
         "timer_expires_at": timer_expires_at,
-        "message": ""
-        # "message": f"Quiz started successfully! You have {request.total_questions} questions to answer."
+        # "message": ""
+        "message": f"Quiz started successfully! You have {request.total_questions} questions to answer."
     }
 
 
@@ -252,7 +253,13 @@ def submit_answer(request: SubmitAnswerRequest, db: Session = Depends(get_db), c
         user_profile.total_games_played += 1
 
         level_info = get_level_from_xp(db, user_profile.total_xp)
+
+        logger.debug(f'level_info: {level_info}')
+        logger.debug(f'level_info["level"]: {level_info["level"]}')
+
         user_profile.current_level = level_info["level"]
+
+        logger.debug(f'user_profile.current_level: {user_profile.current_level}')
     else:
         quiz_session.status = SessionStatus.IN_PROGRESS
         # Get next question order
@@ -360,7 +367,7 @@ def get_quiz_results(quiz_session_id: int, current_user: User = Depends(get_curr
         'xp_earned': quiz_session.xp_earned,
         'coins_earned': quiz_session.coins_earned,
         'total_time': str(total_time) if total_time else None,
-        'difficulty_level': quiz_session.category_id,
+        'difficulty_level': quiz_session.difficulty_level,
         'answers_breakdown': answers_breakdown
     }
 
