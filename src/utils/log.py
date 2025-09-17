@@ -8,7 +8,7 @@ def _logging():
 
     # Create handler and formatter
     handler = logging.StreamHandler()
-    formatter = logging.Formatter('\n%(levelname)s | %(asctime)s | %(filename)s | def: %(funcName)s | Lineno: %(lineno)s >> "%(message)s"\n')
+    formatter = logging.Formatter('%(levelname)s | %(asctime)s | %(filename)s | def: %(funcName)s | Lineno: %(lineno)s >> "%(message)s"')
     handler.setFormatter(formatter)
     log.addHandler(handler)
 

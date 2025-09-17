@@ -1,0 +1,13 @@
+**/.*
+**/__pycache__
+**/tempCodeRunnerFile.py
+**/*.log
+
+# Include Files
+!.env
+!.python-version
+!.env.example
+!.vscode
+!.filenignore
+!.git
+!.gitignore

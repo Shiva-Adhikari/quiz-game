@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException
 
 # === Local imports ===
+from src.utils.log import logger
 from src.utils.db import get_db
 from src.models.questions import Question
 from src.models.authentication import User
@@ -27,15 +28,15 @@ def daily_challenge(db: Session = Depends(get_db), current_user: User = Depends(
     # === Get today challenge ===
     todays_challenge = get_today_challenge_type()
     # todays_challenge = 'survival_mode'
-    print(f'\n\ntodays_challenge: {todays_challenge}')
+    logger.debug(f'todays_challenge: {todays_challenge}')
 
     # === Get challenge details ===
     challenge_info = get_challenge_info(todays_challenge)
-    print(f'challenge_info: {challenge_info}')
+    logger.debug(f'challenge_info: {challenge_info}')
 
     # === Get Today challenge ===
     daily_schedule = get_daily_schedule()
-    print(f'\nDaily Schedule: {daily_schedule}')
+    logger.debug(f'Daily Schedule: {daily_schedule}')
 
     return run_functions(todays_challenge, db, current_user)
 
@@ -303,7 +304,7 @@ def get_today_challenge(db: Session):
         DailyChallenge.is_active
     ).first()
 
-    print(f"\n\n\n\n\nFound daily challenge: {result}")  # Debug print
+    logger.debug(f'Found daily challenge: {result}')
     return result
 
 
@@ -517,7 +518,6 @@ def handle_lightning_round_answer(db: Session, attempt: UserChallengeAttempt, qu
         attempt.is_completed = True
         attempt.is_successful = True  # Always successful if you tried
         attempt.completed_at = datetime.now(timezone.utc)
-        print(f'time_taken: {time_elapsed}')
         attempt.time_taken = time_elapsed
         attempt.final_score = attempt.correct_answers * 5
 
