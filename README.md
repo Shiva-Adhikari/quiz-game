@@ -219,10 +219,6 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 - [ ] Social media integration
 - [ ] Offline mode support
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## 👨‍💻 Developer
 
 **Shiva Adhikari**
@@ -236,8 +232,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - PostgreSQL for reliable data storage
 
 ---
-
-⭐ **Star this repository if you find it helpful!**
 
 *Built with ❤️ using FastAPI and modern Python*
 
