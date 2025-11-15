@@ -54,10 +54,13 @@ def update_user_profile(db: Session, user_id: int, profile_update: UserProfileUp
             if existing:
                 raise ValueError("Display name already taken")
 
-        # Update profile
+        # Update profile - EXCLUDE user_id from update
         update_data = profile_update.model_dump(exclude_unset=True)
         if update_data:
             update_data['updated_at'] = datetime.now(timezone.utc)
+            # IMPORTANT: Remove user_id if present (should never be in update)
+            update_data.pop('user_id', None)  # ADD THIS LINE
+            
             stmt = update(UserProfile).where(UserProfile.user_id == user_id).values(**update_data)
             result = db.execute(stmt)
             if result.rowcount == 0:
