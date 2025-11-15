@@ -184,7 +184,15 @@ def login(
     session_id = str(uuid.uuid4())
 
     # Detect if mobile app (you can customize this detection)
-    is_mobile_app = user_agent and ('okhttp' in user_agent.lower() or 'android' in user_agent.lower() or 'ios' in user_agent.lower())
+    # is_mobile_app = user_agent and ('okhttp' in user_agent.lower() or 'android' in user_agent.lower() or 'ios' in user_agent.lower())
+    is_mobile_app = user_agent and (
+        'okhttp' in user_agent.lower() or 
+        'android' in user_agent.lower() or 
+        'ios' in user_agent.lower() or
+        'dart' in user_agent.lower() or  # ADD THIS
+        'flutter' in user_agent.lower() or  # ADD THIS
+        'brainbattle' in user_agent.lower()  # Our custom user agent
+    )
 
     new_session = UserSession(
         user_id=user_table.id,
