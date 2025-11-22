@@ -266,12 +266,22 @@ def get_today_challenge_type() -> str:
     challenges = list(challenge_weights().keys())
     weights = list(challenge_weights().values())
 
-    selected_challenge = random.choices(challenges, weights=weights, k=1)[0]    # select 1 item, k=1
+    # selected_challenge = random.choices(challenges, weights=weights, k=1)[0]    # select 1 item, k=1
+    selected_challenge = 'marathon_mode'
 
     # === Reset random seed ===
     random.seed()
 
+    logger.debug(f'Today challenge: {selected_challenge}')
     return selected_challenge
+'''
+survival_mode
+perfect_score
+speed_challenge
+lightning_round
+streak_target
+marathon_mode
+'''
 
 
 def get_daily_schedule():

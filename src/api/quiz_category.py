@@ -413,7 +413,12 @@ def get_category_quiz_results(quiz_session_id: int, current_user: User = Depends
             'is_correct': answer.is_correct,
             'time_taken_seconds': answer.time_taken_seconds,
             'difficulty_level': question.difficulty_level,
-            'explanation': getattr(question, 'explanation', None)
+            'explanation': getattr(question, 'explanation', None),
+            # ✅ ADDED: These fields allow frontend to show actual answer text
+            'option_a': question.option_a,
+            'option_b': question.option_b,
+            'option_c': question.option_c,
+            'option_d': question.option_d
         })
 
     total_time = None
