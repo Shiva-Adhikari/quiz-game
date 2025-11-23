@@ -52,27 +52,147 @@ def get_available_categories(db: Session = Depends(get_db)):
     }
 
 
+# @router.post('/start/category-quiz')
+# def start_category_quiz(request: StartCategoryQuizRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+#     """Start a new quiz session with questions from a specific category"""
+
+#     # active_session = db.query(QuizSession).filter(
+#     #     QuizSession.user_id == current_user.id,
+#     #     QuizSession.is_active,
+#     #     QuizSession.status.in_([SessionStatus.STARTED, SessionStatus.IN_PROGRESS])
+#     # ).first()
+
+#     # if active_session:
+#     #     raise HTTPException(
+#     #         status_code=400,
+#     #         detail={
+#     #             "message": "You have an active quiz session",
+#     #             "active_session_id": active_session.id,
+#     #             "session_type": active_session.session_type,
+#     #             "questions_answered": active_session.questions_answered,
+#     #             "total_questions": active_session.total_questions
+#     #         }
+#     #     )
+
+#     check_and_expire_sessions(current_user.id, db)
+
+#     # Validate category exists and is active
+#     category = db.query(Category).filter(
+#         Category.id == request.category_id,
+#         Category.is_active
+#     ).first()
+
+#     if not category:
+#         raise HTTPException(status_code=404, detail='Category not found or inactive')
+
+#     filters = [
+#         Question.category_id == request.category_id,
+#         Question.is_active
+#     ]
+
+#     if hasattr(request, 'difficulty_level') and request.difficulty_level:
+#         filters.append(Question.difficulty_level == request.difficulty_level)
+
+#     # Count available questions first
+#     available_count = db.query(Question).filter(*filters).count()
+
+#     if available_count < request.total_questions:
+#         # Use all available questions if not enough
+#         category_questions = db.query(Question).filter(*filters).all()
+#     else:
+#         # Use subquery for better performance
+#         subquery = db.query(Question.id).filter(*filters).subquery()
+#         category_questions = (
+#             db.query(Question)
+#             .join(subquery, Question.id == subquery.c.id)
+#             .order_by(func.random())
+#             .limit(request.total_questions)
+#             .all()
+#         )
+
+#     '''
+#     if len(category_questions) < request.total_questions:
+#         raise HTTPException(
+#             status_code=400,
+#             detail=f'Not enough questions available in this category. Found {len(category_questions)}, need {request.total_questions}'
+#         )
+#     '''
+
+#     # Calculate timer expiry if time limit is set
+#     timer_expires_at = None
+#     if request.time_limit_minutes:
+#         timer_expires_at = datetime.now(timezone.utc) + timedelta(minutes=request.time_limit_minutes)
+
+#     # Create quiz session
+#     quiz_session = QuizSession(
+#         user_id=current_user.id,
+#         category_id=request.category_id,
+#         session_type='category',
+#         difficulty_level=getattr(request, 'difficulty_level', 'mixed'),
+#         total_questions=request.total_questions,
+#         current_question_index=0,
+#         questions_answered=0,
+#         correct_answers=0,
+#         status=SessionStatus.STARTED,
+#         is_active=True,
+#         started_at=datetime.now(timezone.utc),
+#         last_activity_at=datetime.now(timezone.utc),
+#         timer_expires_at=timer_expires_at,
+#         total_time_seconds=0,
+#         xp_earned=0,
+#         coins_earned=0
+#     )
+
+#     db.add(quiz_session)
+#     db.flush()  # Get quiz_session.id
+
+#     # Create session questions
+#     session_questions = [
+#         QuizSessionQuestion(
+#             quiz_session_id=quiz_session.id,
+#             question_id=question.id,
+#             question_order=idx,
+#             is_answered=False
+#         ) for idx, question in enumerate(category_questions, 1)
+#     ]
+
+#     db.add_all(session_questions)
+#     db.commit()
+
+#     # Prepare questions response
+#     questions_response = [
+#         QuestionResponse(
+#             question_id=question.id,
+#             question_order=idx,
+#             question_text=question.question_text,
+#             option_a=question.option_a,
+#             option_b=question.option_b,
+#             option_c=question.option_c,
+#             option_d=question.option_d,
+#             difficulty_level=question.difficulty_level
+#         ) for idx, question in enumerate(category_questions, 1)
+#     ]
+
+#     return {
+#         "quiz_session_id": quiz_session.id,
+#         "category_name": category.name,
+#         "category_id": category.id,
+#         "session_status": quiz_session.status.value,
+#         "total_questions": quiz_session.total_questions,
+#         "current_question": 0,
+#         "difficulty_level": quiz_session.difficulty_level,
+#         "questions": questions_response,
+#         "timer_expires_at": timer_expires_at,
+#         # "message": ""
+#         "message": f"Category quiz started successfully! You have {request.total_questions} questions from '{category.name}' category."
+#     }
+
+
+# In your quiz_category.py - UPDATE the start_category_quiz function
+
 @router.post('/start/category-quiz')
 def start_category_quiz(request: StartCategoryQuizRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Start a new quiz session with questions from a specific category"""
-
-    # active_session = db.query(QuizSession).filter(
-    #     QuizSession.user_id == current_user.id,
-    #     QuizSession.is_active,
-    #     QuizSession.status.in_([SessionStatus.STARTED, SessionStatus.IN_PROGRESS])
-    # ).first()
-
-    # if active_session:
-    #     raise HTTPException(
-    #         status_code=400,
-    #         detail={
-    #             "message": "You have an active quiz session",
-    #             "active_session_id": active_session.id,
-    #             "session_type": active_session.session_type,
-    #             "questions_answered": active_session.questions_answered,
-    #             "total_questions": active_session.total_questions
-    #         }
-    #     )
 
     check_and_expire_sessions(current_user.id, db)
 
@@ -85,13 +205,23 @@ def start_category_quiz(request: StartCategoryQuizRequest, db: Session = Depends
     if not category:
         raise HTTPException(status_code=404, detail='Category not found or inactive')
 
+    # ✅ FIXED: Build filters dynamically
     filters = [
         Question.category_id == request.category_id,
         Question.is_active
     ]
 
+    # ✅ FIXED: Only add difficulty filter if it's not null/none/mixed
     if hasattr(request, 'difficulty_level') and request.difficulty_level:
-        filters.append(Question.difficulty_level == request.difficulty_level)
+        difficulty_str = str(request.difficulty_level).upper()
+        if difficulty_str not in ['NONE', 'NULL', 'MIXED', '']:
+            from src.utils.enums import DifficultyLevel
+            try:
+                difficulty_enum = DifficultyLevel[difficulty_str]
+                filters.append(Question.difficulty_level == difficulty_enum)
+            except KeyError:
+                # If invalid difficulty, just ignore it
+                pass
 
     # Count available questions first
     available_count = db.query(Question).filter(*filters).count()
@@ -110,26 +240,27 @@ def start_category_quiz(request: StartCategoryQuizRequest, db: Session = Depends
             .all()
         )
 
-    '''
-    if len(category_questions) < request.total_questions:
+    if not category_questions:
         raise HTTPException(
-            status_code=400,
-            detail=f'Not enough questions available in this category. Found {len(category_questions)}, need {request.total_questions}'
+            status_code=404,
+            detail='No questions available in this category with the selected difficulty'
         )
-    '''
 
     # Calculate timer expiry if time limit is set
     timer_expires_at = None
     if request.time_limit_minutes:
         timer_expires_at = datetime.now(timezone.utc) + timedelta(minutes=request.time_limit_minutes)
 
+    # ✅ FIXED: Store difficulty properly
+    difficulty_to_save = request.difficulty_level if request.difficulty_level else 'mixed'
+
     # Create quiz session
     quiz_session = QuizSession(
         user_id=current_user.id,
         category_id=request.category_id,
         session_type='category',
-        difficulty_level=getattr(request, 'difficulty_level', 'mixed'),
-        total_questions=request.total_questions,
+        difficulty_level=difficulty_to_save,  # ✅ Use proper difficulty
+        total_questions=len(category_questions),  # ✅ Use actual count
         current_question_index=0,
         questions_answered=0,
         correct_answers=0,
@@ -183,8 +314,7 @@ def start_category_quiz(request: StartCategoryQuizRequest, db: Session = Depends
         "difficulty_level": quiz_session.difficulty_level,
         "questions": questions_response,
         "timer_expires_at": timer_expires_at,
-        # "message": ""
-        "message": f"Category quiz started successfully! You have {request.total_questions} questions from '{category.name}' category."
+        "message": f"Category quiz started successfully! You have {len(category_questions)} questions from '{category.name}' category."
     }
 
 
