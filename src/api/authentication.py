@@ -24,14 +24,86 @@ from src.models.authentication import (
 )
 from src.schemas.authentication import LoginResponse, UserResponse, UserRegister, UserLogin
 from src.utils.get_current_user import get_current_user
+from python_usernames import is_safe_username
 
 
 router = APIRouter(prefix='/authentication', tags=['Authentication'])
 security = HTTPBearer(auto_error=False)
 
 
+# Add these custom blocked usernames
+CUSTOM_BLOCKED_USERNAMES = [
+    'google', 'microsoft', 'apple', 'facebook', 'amazon',
+    'brainbattle', 'quizgame', 'admin', 'root', 'moderator'
+]
+
+
+# Add this new endpoint BEFORE your /register endpoint
+@router.get('/check-username/{username}')
+def check_username_availability(
+    username: str,
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    Check if username is available and not blocked
+    """
+    username_lower = username.lower().strip()
+    
+    # Check minimum length
+    if len(username_lower) < 4:
+        return {
+            "available": False,
+            "message": "Username must be at least 4 characters"
+        }
+    
+    # Check maximum length
+    if len(username_lower) > 50:
+        return {
+            "available": False,
+            "message": "Username must be less than 50 characters"
+        }
+    
+    # Check using python-usernames library (checks for inappropriate words and URL-unsafe characters)
+    if not is_safe_username(
+        username_lower,
+        blacklist=CUSTOM_BLOCKED_USERNAMES,
+        max_length=50
+    ):
+        return {
+            "available": False,
+            "message": "This username is not allowed"
+        }
+    
+    # Check if username exists in database
+    existing_user = db.query(User).filter(
+        User.username == username_lower
+    ).first()
+    
+    if existing_user:
+        return {
+            "available": False,
+            "message": "Username already taken"
+        }
+    
+    return {
+        "available": True,
+        "message": "Username is available"
+    }
+
+
 @router.post('/register', response_model=UserResponse)
 def register(user: UserRegister, db: Session = Depends(get_db)) -> UserResponse:
+
+    # Add validation at the start
+    from python_usernames import is_safe_username
+    
+    if not is_safe_username(
+        user.username,
+        blacklist=CUSTOM_BLOCKED_USERNAMES,
+        max_length=50
+    ):
+        raise HTTPException(status_code=400, detail='Username is not allowed')
+
     existing_user = db.query(User).filter(
         (User.email == user.email) | (User.username == user.username)
     ).first()
@@ -179,7 +251,7 @@ def login(
         user_credentials.password, user_table.password)
 
     if not verified_password:
-        raise HTTPException(status_code=401, detail='Password not match')
+        raise HTTPException(status_code=400, detail='Password not match')
 
     session_id = str(uuid.uuid4())
 
