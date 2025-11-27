@@ -17,6 +17,7 @@ dependencies = [
     "pytest>=8.4.1",
     "python-jose[cryptography]>=3.5.0",
     "python-multipart>=0.0.20",
+    "python-usernames>=1.1.0",
     "sqlalchemy>=2.0.41",
     "types-passlib>=1.7.7.20250602",
     "uvicorn[standard]>=0.34.3",
