@@ -1,49 +1,35 @@
 # === Standard library imports ===
 import uuid
-from datetime import datetime, timedelta, timezone
 from typing import Optional
+from datetime import datetime, timedelta, timezone
 
 # === Third-party imports ===
-from sqlalchemy import or_
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
+from python_usernames import is_safe_username
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi import (
-    APIRouter, Depends, HTTPException, Response,
-    Request, Header, Cookie
-)
+from fastapi import APIRouter, Depends, HTTPException, Response, Request, Header, Cookie
 
 # === Local imports ===
-from src.utils.log import logger
 from src.utils.db import get_db
+from src.utils.log import logger
 # from src.utils.email_send import send_email
 from src.utils.generate_otp import generate_otp
-from src.utils.hash_password import hash_password, verify_password
-from src.models.authentication import (
-    User, EmailVerification,
-    UserSession
-)
-from src.schemas.authentication import LoginResponse, UserResponse, UserRegister, UserLogin
 from src.utils.get_current_user import get_current_user
-from python_usernames import is_safe_username
+from src.core.reserved_usernames import RESERVED_USERNAMES
+from src.utils.hash_password import hash_password, verify_password
+from src.models.authentication import User, EmailVerification, UserSession
+from src.schemas.authentication import LoginResponse, UserResponse, UserRegister, UserLogin
 
 
 router = APIRouter(prefix='/authentication', tags=['Authentication'])
 security = HTTPBearer(auto_error=False)
 
 
-# Add these custom blocked usernames
-CUSTOM_BLOCKED_USERNAMES = [
-    'google', 'microsoft', 'apple', 'facebook', 'amazon',
-    'brainbattle', 'quizgame', 'admin', 'root', 'moderator'
-]
-
-
 # Add this new endpoint BEFORE your /register endpoint
 @router.get('/check-username/{username}')
-def check_username_availability(
-    username: str,
-    db: Session = Depends(get_db)
-) -> dict:
+async def check_username_availability(username: str, db: AsyncSession = Depends(get_db)) -> dict:
     """
     Check if username is available and not blocked
     """
@@ -66,7 +52,7 @@ def check_username_availability(
     # Check using python-usernames library (checks for inappropriate words and URL-unsafe characters)
     if not is_safe_username(
         username_lower,
-        blacklist=CUSTOM_BLOCKED_USERNAMES,
+        blacklist=RESERVED_USERNAMES,
         max_length=50
     ):
         return {
@@ -75,9 +61,8 @@ def check_username_availability(
         }
     
     # Check if username exists in database
-    existing_user = db.query(User).filter(
-        User.username == username_lower
-    ).first()
+    query = select(User).where(User.username == username_lower)
+    existing_user = await db.scalar(query)
     
     if existing_user:
         return {
@@ -92,7 +77,7 @@ def check_username_availability(
 
 
 @router.post('/register', response_model=UserResponse)
-def register(user: UserRegister, db: Session = Depends(get_db)) -> UserResponse:
+async def register(user: UserRegister, db: Session = Depends(get_db)) -> UserResponse:
 
     # Add validation at the start
     from python_usernames import is_safe_username
@@ -104,9 +89,8 @@ def register(user: UserRegister, db: Session = Depends(get_db)) -> UserResponse:
     ):
         raise HTTPException(status_code=400, detail='Username is not allowed')
 
-    existing_user = db.query(User).filter(
-        (User.email == user.email) | (User.username == user.username)
-    ).first()
+    query = select(User).where((User.email == user.email) | (User.username == user.username))
+    existing_user = await db.scalar(query)
 
     if existing_user:
         if existing_user.is_verified:
@@ -115,8 +99,8 @@ def register(user: UserRegister, db: Session = Depends(get_db)) -> UserResponse:
             if existing_user.username == user.username:
                 raise HTTPException(status_code=409, detail='Username already exists')
         else:
-            db.delete(existing_user)
-            db.flush()
+            await db.delete(existing_user)
+            await db.flush()
 
     otp = generate_otp()
     expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
@@ -128,20 +112,20 @@ def register(user: UserRegister, db: Session = Depends(get_db)) -> UserResponse:
     if not sent_email:
         raise HTTPException(status_code=404, detail='Invalid email')
     '''
-    print(f'otp: {otp}')
+    logger.debug(f'otp: {otp}')
 
     # hash password
     hashed_password = hash_password(user.password)
 
     try:
-        # === create new user ===
+        #  create new user 
         user_table = User(
             email=user.email,
             username=user.username,
             password=hashed_password,
         )
         db.add(user_table)
-        db.flush()  # Get the ID without committing
+        await db.flush()  # Get the ID without committing
 
         email_verification_table = EmailVerification(
             user_id=user_table.id,
@@ -150,7 +134,7 @@ def register(user: UserRegister, db: Session = Depends(get_db)) -> UserResponse:
         )
         db.add(email_verification_table)
 
-        # === Auto-create user profile ===
+        #  Auto-create user profile 
         from src.models.user_profile import UserProfile  # Import your UserProfile model
 
         user_profile = UserProfile(
@@ -164,10 +148,10 @@ def register(user: UserRegister, db: Session = Depends(get_db)) -> UserResponse:
         db.add(user_profile)
 
         # commit both together
-        db.commit()
-        db.refresh(user_table)
+        await db.commit()
+        await db.refresh(user_table)
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=500, detail=f'Something went wrong {e}')
 
@@ -175,23 +159,25 @@ def register(user: UserRegister, db: Session = Depends(get_db)) -> UserResponse:
 
 
 @router.post('/verify-email')
-def verify_email(email: str, otp: int, db: Session = Depends(get_db)) -> dict:
-    user_table = db.query(User).filter(User.email == email).first()
+async def verify_email(email: str, otp: int, db: Session = Depends(get_db)) -> dict:
+
+    query = select(User).filter(User.email == email)
+    user_table = await db.scalar(query)
+
     if not user_table:
         raise HTTPException(status_code=404, detail='User not found')
 
     if user_table.is_verified:
         return {'message': 'User already verified'}
+    
+    query = select(EmailVerification).where(EmailVerification.user_id == user_table.id)
+    email_verification_table = await db.scalar(query)
 
-    email_verification_table = db.query(EmailVerification).filter(
-        EmailVerification.user_id == user_table.id
-    ).first()
-
-    # === Check if verification record exists FIRST ===
+    #  Check if verification record exists FIRST 
     if not email_verification_table:
         raise HTTPException(status_code=400, detail='No verification record found')
 
-    # === check otp expired and not expires ===
+    #  check otp expired and not expires 
     if email_verification_table.is_used:
         raise HTTPException(status_code=400, detail='Otp already used')
 
@@ -200,12 +186,12 @@ def verify_email(email: str, otp: int, db: Session = Depends(get_db)) -> dict:
         # cleanup expired otp
         email_verification_table.token = None
         email_verification_table.expires_at = None
-        db.commit()
+        await db.commit()
         raise HTTPException(status_code=400, detail='Otp Expired')
 
     if int(email_verification_table.token) != int(otp):
         email_verification_table.attempts += 1
-        db.commit()
+        await db.commit()
 
         remaining = 5 - email_verification_table.attempts
         if remaining > 0:
@@ -214,35 +200,36 @@ def verify_email(email: str, otp: int, db: Session = Depends(get_db)) -> dict:
                 detail=f'Invalid Otp, {remaining} attempts remaining')
         else:
             email_verification_table.token = None
-            db.commit()
+            await db.commit()
             raise HTTPException(
                 status_code=429,
                 detail='Otp Expired, Please request a new otp')
 
-    # === Success - verify user and cleanup ===
+    #  Success - verify user and cleanup 
     user_table.is_verified = True
     email_verification_table.token = None
     email_verification_table.expires_at = None
     email_verification_table.is_used = True
     email_verification_table.verified_at = datetime.now(timezone.utc)
-    db.commit()
+    await db.commit()
 
     return {'message': 'Email verified successfully'}
 
 
 @router.post('/login', response_model=LoginResponse)
-def login(
+async def login(
         user_credentials: UserLogin,
         response: Response,
         user_agent: Optional[str] = Header(None),
         db: Session = Depends(get_db)) -> LoginResponse:
 
-    user_table = db.query(User).filter(
+    query = select(User).where(
         or_(
             User.username == user_credentials.username,
             User.email == user_credentials.username
         )
-    ).filter(User.is_verified).first()
+    ).where(User.is_verified)
+    user_table = await db.scalar(query)
 
     if not user_table:
         raise HTTPException(status_code=404, detail='User not found')
@@ -277,10 +264,10 @@ def login(
 
     user_table.is_active = True
     db.add(new_session)
-    db.commit()
+    await db.commit()
 
     # '''
-    # === Set cookie for web browsers (not mobile apps) ===
+    #  Set cookie for web browsers (not mobile apps) 
     if not is_mobile_app:
         response.set_cookie(
             key='session_id',
@@ -306,7 +293,7 @@ def login(
 
 
 @router.post('/logout')
-def logout(
+async def logout(
     response: Response,
     current_user: User = Depends(get_current_user),
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -314,7 +301,7 @@ def logout(
     db: Session = Depends(get_db)
 ):
 
-    # === Get session token ===
+    #  Get session token 
     session_token = None
     if credentials:
         session_token = credentials.credentials
@@ -322,22 +309,22 @@ def logout(
         session_token = session_id
 
     if session_token:
-        # === Deactivate session ===
-        session = db.query(UserSession).filter(
-            UserSession.session_token == session_token
-        ).first()
+        #  Deactivate session 
+        query = select(UserSession).where(UserSession.session_token == session_token)
+        session = await db.scalar(query)
+
         if session:
             session.is_active = False
-            db.commit()
+            await db.commit()
 
-    # === Clear cookie ===
+    #  Clear cookie 
     response.delete_cookie(key='session_id')
 
     return {'message': 'Logout successful'}
 
 
 @router.get('/session-status')
-def session_status(
+async def session_status(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     session_id: Optional[str] = Cookie(None, alias="session_id"),
@@ -346,27 +333,26 @@ def session_status(
     session_token = None
     client_type = "web"
 
-    # === Try to get token from Authorization header (mobile) ===
+    #  Try to get token from Authorization header (mobile) 
     if credentials:
         session_token = credentials.credentials
         client_type = "mobile"
 
-    # === If no token in header, try cookie (web) ===
+    #  If no token in header, try cookie (web) 
     elif session_id:
         session_token = session_id
         client_type = "web"
 
-    # === No session found ===
+    #  No session found 
     if not session_token:
         return {
             "status": "no_session",
             "client_type": client_type
         }
 
-    # === Find session in database ===
-    session = db.query(UserSession).filter(
-        UserSession.session_token == session_token
-    ).first()
+    #  Find session in database 
+    query = select(UserSession).where(UserSession.session_token == session_token)
+    session = await db.scalar(query)
 
     if not session:
         return {
@@ -374,32 +360,34 @@ def session_status(
             "client_type": client_type
         }
 
-    # === Check if session is expired ===
+    #  Check if session is expired 
     if session.expires_at < datetime.now(timezone.utc):
         # Mark session as inactive if expired
         session.is_active = False
-        db.commit()
+        await db.commit()
         return {
             "status": "expired_session",
             "client_type": client_type
         }
 
-    # === Check if session is active ===
+    #  Check if session is active 
     if not session.is_active:
         return {
             "status": "inactive_session",
             "client_type": client_type
         }
 
-    # === Get user information ===
-    user = db.query(User).filter(User.id == session.user_id).first()
+    #  Get user information 
+    query = select(User).where(User.id == session.user_id)
+    user = await db.scalar(query)
+
     if not user:
         return {
             "status": "user_not_found",
             "client_type": client_type
         }
 
-    # === Return valid session info ===
+    #  Return valid session info 
     return {
         "status": "valid_session",
         "client_type": client_type,
