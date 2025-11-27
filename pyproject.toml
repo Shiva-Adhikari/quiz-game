@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.16.2",
+    "asyncpg>=0.31.0",
     "bcrypt==4.0.1",
     "fastapi>=0.115.13",
     "httpx>=0.28.1",
@@ -18,7 +19,7 @@ dependencies = [
     "python-jose[cryptography]>=3.5.0",
     "python-multipart>=0.0.20",
     "python-usernames>=1.1.0",
-    "sqlalchemy>=2.0.41",
+    "sqlalchemy[asyncio]>=2.0.41",
     "types-passlib>=1.7.7.20250602",
     "uvicorn[standard]>=0.34.3",
 ]
