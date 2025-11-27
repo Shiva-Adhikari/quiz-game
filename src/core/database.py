@@ -1,35 +1,22 @@
 # Third-party imports
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
 
 # Local imports
 from src.core.config import settings
 
 
 DATABASE_URL = settings.DATABASE_URL.get_secret_value()
-engine = create_engine(DATABASE_URL, echo=settings.DEBUG)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine = create_async_engine(DATABASE_URL, echo=settings.DEBUG)
 
-
-# Database connection test logic
-def test_connection():
-    try:
-        connection = engine.connect()
-        print('Database connection successful!')
-        connection.close()
-    except Exception as e:
-        print(f'Database connection failed: {e}')
+# pool_pre_ping=True helps in maintaining connections for long-running applications
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False)
 
 
 class Base(DeclarativeBase):
     pass
-
-
-def create_tables():
-    """Create all database tables"""
-    try:
-        # Base.metadata.drop_all(bind=engine)
-        Base.metadata.create_all(bind=engine)
-        print("Tables created successfully")
-    except Exception as e:
-        print(f'Error creating tables: {e}')
