@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Local imports
 from src.core.config import settings
-from src.core.database import create_tables
+from src.core.database import engine, Base
 from src.api.authentication import router as authentication_router
 from src.api.questions import router as question_router
 from src.api.quiz_random import router as start_random_quiz_router
@@ -17,9 +17,8 @@ from src.api.user_profile import router as user_profile_router
 from src.api.level_system import router as level_system_router
 from src.api.badges import router as badges_router
 from src.api.leaderboard import router as leaderboard_router
+from src.utils.log import logger
 
-
-create_tables()
 
 app = FastAPI(
     title='Quiz Game API',
@@ -27,10 +26,22 @@ app = FastAPI(
     version='0.0.1'
 )
 
+
+@app.on_event('startup')
+async def startup_event():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    logger.info('Database tables created (if not exist).')
+
+
+origins = [
+    "http://localhost:3000/",
+]
+
 # Add CORS middleware to allow cross-origin requests
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify actual origins
+    allow_origins=origins,  # In production, specify actual origins     # default ->> ["*"]
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -38,8 +49,8 @@ app.add_middleware(
 
 
 @app.get('/')
-def root():
-    return {'message': 'Successfully running...', 'status': 'good'}
+async def root():
+    return {'message': 'Server running!', 'status': 'good'}
 
 
 @app.get("/favicon.ico")
@@ -62,6 +73,8 @@ app.include_router(leaderboard_router, prefix='/api/v1')
 
 if __name__ == '__main__':
     uvicorn.run(
-        app, host=settings.HOST.get_secret_value(), port=settings.PORT,
+        app,
+        host=settings.HOST.get_secret_value(),
+        port=settings.PORT,
         reload=True
     )
