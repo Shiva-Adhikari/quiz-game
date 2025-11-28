@@ -2,8 +2,9 @@
 from datetime import datetime, timedelta, timezone
 
 # Third-party imports
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException
 
 # Local imports
@@ -23,10 +24,9 @@ router = APIRouter(prefix='/CategoryQuiz', tags=['CategoryQuiz'])
 
 
 @router.get('/categories')
-def get_available_categories(db: Session = Depends(get_db)):
-    """Get all available categories for quiz"""
-
-    categories = db.query(Category).filter(Category.is_active).all()
+async def get_available_categories(db: AsyncSession = Depends(get_db)):
+    """Get all available categories for quiz"""    
+    categories = await db.scalars(select(Category).where(Category.is_active))
 
     if not categories:
         raise HTTPException(status_code=404, detail='No categories available')
@@ -34,10 +34,10 @@ def get_available_categories(db: Session = Depends(get_db)):
     category_list = []
     for category in categories:
         # Count available questions in each category
-        question_count = db.query(Question).filter(
+        question_count = await db.scalar(select(func.count(Question.id)).where(
             Question.category_id == category.id,
             Question.is_active
-        ).count()
+        ))
 
         category_list.append({
             "category_id": category.id,
@@ -52,155 +52,22 @@ def get_available_categories(db: Session = Depends(get_db)):
     }
 
 
-# @router.post('/start/category-quiz')
-# def start_category_quiz(request: StartCategoryQuizRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-#     """Start a new quiz session with questions from a specific category"""
-
-#     # active_session = db.query(QuizSession).filter(
-#     #     QuizSession.user_id == current_user.id,
-#     #     QuizSession.is_active,
-#     #     QuizSession.status.in_([SessionStatus.STARTED, SessionStatus.IN_PROGRESS])
-#     # ).first()
-
-#     # if active_session:
-#     #     raise HTTPException(
-#     #         status_code=400,
-#     #         detail={
-#     #             "message": "You have an active quiz session",
-#     #             "active_session_id": active_session.id,
-#     #             "session_type": active_session.session_type,
-#     #             "questions_answered": active_session.questions_answered,
-#     #             "total_questions": active_session.total_questions
-#     #         }
-#     #     )
-
-#     check_and_expire_sessions(current_user.id, db)
-
-#     # Validate category exists and is active
-#     category = db.query(Category).filter(
-#         Category.id == request.category_id,
-#         Category.is_active
-#     ).first()
-
-#     if not category:
-#         raise HTTPException(status_code=404, detail='Category not found or inactive')
-
-#     filters = [
-#         Question.category_id == request.category_id,
-#         Question.is_active
-#     ]
-
-#     if hasattr(request, 'difficulty_level') and request.difficulty_level:
-#         filters.append(Question.difficulty_level == request.difficulty_level)
-
-#     # Count available questions first
-#     available_count = db.query(Question).filter(*filters).count()
-
-#     if available_count < request.total_questions:
-#         # Use all available questions if not enough
-#         category_questions = db.query(Question).filter(*filters).all()
-#     else:
-#         # Use subquery for better performance
-#         subquery = db.query(Question.id).filter(*filters).subquery()
-#         category_questions = (
-#             db.query(Question)
-#             .join(subquery, Question.id == subquery.c.id)
-#             .order_by(func.random())
-#             .limit(request.total_questions)
-#             .all()
-#         )
-
-#     '''
-#     if len(category_questions) < request.total_questions:
-#         raise HTTPException(
-#             status_code=400,
-#             detail=f'Not enough questions available in this category. Found {len(category_questions)}, need {request.total_questions}'
-#         )
-#     '''
-
-#     # Calculate timer expiry if time limit is set
-#     timer_expires_at = None
-#     if request.time_limit_minutes:
-#         timer_expires_at = datetime.now(timezone.utc) + timedelta(minutes=request.time_limit_minutes)
-
-#     # Create quiz session
-#     quiz_session = QuizSession(
-#         user_id=current_user.id,
-#         category_id=request.category_id,
-#         session_type='category',
-#         difficulty_level=getattr(request, 'difficulty_level', 'mixed'),
-#         total_questions=request.total_questions,
-#         current_question_index=0,
-#         questions_answered=0,
-#         correct_answers=0,
-#         status=SessionStatus.STARTED,
-#         is_active=True,
-#         started_at=datetime.now(timezone.utc),
-#         last_activity_at=datetime.now(timezone.utc),
-#         timer_expires_at=timer_expires_at,
-#         total_time_seconds=0,
-#         xp_earned=0,
-#         coins_earned=0
-#     )
-
-#     db.add(quiz_session)
-#     db.flush()  # Get quiz_session.id
-
-#     # Create session questions
-#     session_questions = [
-#         QuizSessionQuestion(
-#             quiz_session_id=quiz_session.id,
-#             question_id=question.id,
-#             question_order=idx,
-#             is_answered=False
-#         ) for idx, question in enumerate(category_questions, 1)
-#     ]
-
-#     db.add_all(session_questions)
-#     db.commit()
-
-#     # Prepare questions response
-#     questions_response = [
-#         QuestionResponse(
-#             question_id=question.id,
-#             question_order=idx,
-#             question_text=question.question_text,
-#             option_a=question.option_a,
-#             option_b=question.option_b,
-#             option_c=question.option_c,
-#             option_d=question.option_d,
-#             difficulty_level=question.difficulty_level
-#         ) for idx, question in enumerate(category_questions, 1)
-#     ]
-
-#     return {
-#         "quiz_session_id": quiz_session.id,
-#         "category_name": category.name,
-#         "category_id": category.id,
-#         "session_status": quiz_session.status.value,
-#         "total_questions": quiz_session.total_questions,
-#         "current_question": 0,
-#         "difficulty_level": quiz_session.difficulty_level,
-#         "questions": questions_response,
-#         "timer_expires_at": timer_expires_at,
-#         # "message": ""
-#         "message": f"Category quiz started successfully! You have {request.total_questions} questions from '{category.name}' category."
-#     }
-
-
-# In your quiz_category.py - UPDATE the start_category_quiz function
-
 @router.post('/start/category-quiz')
-def start_category_quiz(request: StartCategoryQuizRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def start_category_quiz(request: StartCategoryQuizRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Start a new quiz session with questions from a specific category"""
 
     check_and_expire_sessions(current_user.id, db)
 
     # Validate category exists and is active
-    category = db.query(Category).filter(
+    # category = db.query(Category).filter(
+        # Category.id == request.category_id,
+        # Category.is_active
+    # ).first()
+
+    category = await db.scalar(select(Category).where(
         Category.id == request.category_id,
         Category.is_active
-    ).first()
+    ))
 
     if not category:
         raise HTTPException(status_code=404, detail='Category not found or inactive')
@@ -224,11 +91,13 @@ def start_category_quiz(request: StartCategoryQuizRequest, db: Session = Depends
                 pass
 
     # Count available questions first
-    available_count = db.query(Question).filter(*filters).count()
+    # available_count = db.query(Question).filter(*filters).count()
+    available_count = await db.scalar(select(func.count(Question.id)).where(*filters))
 
     if available_count < request.total_questions:
         # Use all available questions if not enough
-        category_questions = db.query(Question).filter(*filters).all()
+        # category_questions = db.query(Question).filter(*filters).all()
+        category_questions = await db.scalars(select(Question).where(*filters))
     else:
         # Use subquery for better performance
         subquery = db.query(Question.id).filter(*filters).subquery()
